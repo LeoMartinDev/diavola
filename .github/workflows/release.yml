@@ -61,7 +61,7 @@ jobs:
           - platform: windows-latest
             args: "--bundles msi,nsis"
           - platform: macos-latest
-            args: "--target aarch64-apple-darwin --bundles dmg"
+            args: "--target aarch64-apple-darwin --bundles dmg,app"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
