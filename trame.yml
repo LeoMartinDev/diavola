@@ -1,0 +1,29 @@
+processes:
+  setup:
+    kind: task
+    env:
+      EXAMPLE_ENV: "hello-from-trame"
+    cmd: |
+      deno eval 'console.log("setup complete:", Deno.env.get("EXAMPLE_ENV"))'
+
+  api:
+    kind: service
+    cmd: |
+      deno eval 'console.log("api listening on http://127.0.0.1:3999"); setInterval(() => console.log("api tick", new Date().toISOString()), 200)'
+    dependsOn:
+      setup: success
+    ready:
+      type: log
+      pattern: "api listening"
+      regex: false
+      timeoutMs: 10000
+
+  worker:
+    kind: service
+    cmd: |
+      deno eval 'console.log("worker ready"); setInterval(() => console.log("worker tick", new Date().toISOString()), 2000)'
+    dependsOn:
+      api: ready
+    ready:
+      type: delay
+      durationMs: 500

@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: deno install
+
+      - run: deno task check
+      - run: deno task build
+      - run: deno test scripts/
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - run: cargo test
+        working-directory: src-tauri
+
+  release:
+    needs: check
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: "--bundles deb,appimage"
+          - platform: windows-latest
+            args: "--bundles msi,nsis"
+          - platform: macos-latest
+            args: "--target aarch64-apple-darwin --bundles dmg"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: deno install
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin
+      - if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Compute version
+        run: deno run --allow-read --allow-write --allow-env --allow-run=git scripts/ci_version.ts
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: "deno task tauri"
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Trame ${{ env.RELEASE_VERSION }}
+          prerelease: false
+          generateReleaseNotes: true
+          uploadUpdaterJson: true
+          args: ${{ matrix.args }}

@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — single source of truth for the whole app.
+   Tailwind v4 @theme turns these into utilities (bg-canvas, text-text-muted,
+   border-border, bg-accent, font-sans, font-mono, ...).
+   Dark / black oriented. One accent. Hairline borders.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Surfaces — near-black graphite, subtly raised */
+  --color-canvas: #08090b; /* deepest base — main content */
+  --color-surface: #0e0f12; /* sidebar / panes */
+  --color-surface-raised: #15171b; /* selected card, input bg, active segment */
+  --color-surface-hover: #1b1d22; /* hover states */
+
+  /* Borders — subtle hairlines */
+  --color-border: #ffffff1e; /* ~12% white */
+  --color-border-strong: #ffffff30; /* ~19% white, focus ring base */
+
+  /* Text */
+  --color-text: #e7e9ee; /* primary */
+  --color-text-muted: #9aa0aa; /* secondary */
+  --color-text-subtle: #5d636e; /* tertiary / labels */
+
+  /* Accent — monochrome: a near-white drives primary actions, focus, and
+     active states. Semantic colors (success/danger) stay reserved for status. */
+  --color-accent: #e7e9ee; /* primary actions, focus, active */
+  --color-accent-hover: #ffffff;
+  --color-accent-soft: #e7e9ee1f; /* tinted backgrounds */
+
+  /* Semantic status */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows — soft depth for floating surfaces */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.40);
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+/* ── Theme variants ───────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-canvas: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f3f4f6;
+  --color-surface-hover: #e5e7eb;
+  --color-border: #0000000f;
+  --color-border-strong: #0000001a;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #9ca3af;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-soft: #2563eb14;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+}
+
+[data-theme="auto"] {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] {
+    --color-canvas: #f8f9fa;
+    --color-surface: #ffffff;
+    --color-surface-raised: #f3f4f6;
+    --color-surface-hover: #e5e7eb;
+    --color-border: #0000000f;
+    --color-border-strong: #0000001a;
+    --color-text: #1f2937;
+    --color-text-muted: #6b7280;
+    --color-text-subtle: #9ca3af;
+    --color-accent: #2563eb;
+    --color-accent-hover: #1d4ed8;
+    --color-accent-soft: #2563eb14;
+    --color-success: #059669;
+    --color-warning: #d97706;
+    --color-danger: #dc2626;
+  }
+}
+
+/* ── Local fonts (offline-first; no CDN dependency) ─────────────────────── */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Italic.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2-variations");
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#svelte {
+  height: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+input,
+textarea,
+select {
+  letter-spacing: 0;
+  outline: 1px solid transparent;
+  outline-offset: 0;
+}
+
+input,
+textarea,
+select,
+option,
+[contenteditable="true"],
+[data-native-selectable],
+[data-native-selectable] *:not(.select-none) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* ── Titlebar drag region ──────────────────────────────────────────────── */
+
+.titlebar {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titlebar button,
+.titlebar input,
+.titlebar select,
+.titlebar [data-tauri-no-drag] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* ── Accessibility ──────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 1px solid var(--color-border-strong);
+  outline-offset: 0;
+}
