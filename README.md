@@ -30,8 +30,6 @@ Trame using the built-in form editor.
 ### Structure
 
 ```yaml
-version: 1           # required, must be 1
-
 env:                 # optional — shared env vars
   NODE_ENV: development
   DATABASE_URL: postgres://localhost:5432/myproject
@@ -169,8 +167,6 @@ api:
 ### Web Project
 
 ```yaml
-version: 1
-
 processes:
   install:
     kind: task
@@ -204,7 +200,6 @@ processes:
 ### Python + Redis
 
 ```yaml
-version: 1
 env:
   PYTHONUNBUFFERED: "1"
 
