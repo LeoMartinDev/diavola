@@ -13,8 +13,6 @@ const { createGunzip } = require("zlib");
 const { pipeline } = require("stream");
 const { promisify } = require("util");
 const os = require("os");
-const https = require("https");
-const http = require("http");
 
 const streamPipeline = promisify(pipeline);
 
@@ -136,25 +134,14 @@ function runBinary(binPath, platform) {
   spawn(binPath, process.argv, opts).unref();
 }
 
-function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = createWriteStream(dest);
-    const proto = url.startsWith("https") ? https : http;
-    proto
-      .get(
-        url,
-        { headers: { "User-Agent": "diavola-npm-installer" } },
-        (res) => {
-          if (res.statusCode >= 400) {
-            reject(new Error(`Download failed: ${res.statusCode}`));
-            return;
-          }
-          res.pipe(file);
-          file.on("finish", () => file.close(resolve));
-        },
-      )
-      .on("error", reject);
+async function downloadFile(url, dest) {
+  const res = await fetch(url, {
+    redirect: "follow",
+    headers: { "User-Agent": "diavola-npm-installer" },
   });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  require("fs").writeFileSync(dest, buffer);
 }
 
 function gunzip(src, dest) {
