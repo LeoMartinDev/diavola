@@ -1,6 +1,6 @@
 {
   "name": "diavola",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Desktop dev process launcher — one file, one click, everything runs.",
   "type": "module",
   "license": "MIT",
