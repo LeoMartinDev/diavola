@@ -35,7 +35,7 @@ describe("window seam", () => {
   it("no-ops safely in browser mode", async () => {
     expect(canUseTauriWindow()).toBe(false);
 
-    await expect(setWindowTitle("Trame")).resolves.toBeUndefined();
+    await expect(setWindowTitle("Diavola")).resolves.toBeUndefined();
     await expect(startWindowDrag()).resolves.toBeUndefined();
     await expect(minimizeWindow()).resolves.toBeUndefined();
     await expect(toggleWindowMaximize()).resolves.toBeUndefined();

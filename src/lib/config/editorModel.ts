@@ -2,7 +2,7 @@ import type {
   CommandReadyConfig,
   DependencyCondition,
   DevappConfig,
-  TrameConfig,
+  DiavolaConfig,
   ProcessConfig,
   ProcessKind,
   ReadyConfig,
@@ -106,7 +106,7 @@ export function toProcessForm(
   };
 }
 
-export function buildConfig(form: ConfigFormState): TrameConfig {
+export function buildConfig(form: ConfigFormState): DiavolaConfig {
   const processEntries = form.processes
     .map((process) => [process.name.trim(), buildProcessConfig(process)] as const)
     .filter(([name]) => name.length > 0);

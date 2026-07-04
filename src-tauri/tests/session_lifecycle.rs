@@ -4,7 +4,7 @@ use chrono::Utc;
 use tempfile::TempDir;
 
 use tauri::Manager;
-use trame_lib::{
+use diavola_lib::{
     application::orchestrator::ProcessOrchestrator,
     domain::{
         process::ProcessStatus,
@@ -14,8 +14,8 @@ use trame_lib::{
 };
 
 fn write_config(dir: &TempDir, yaml: &str) -> LoadedProjectConfig {
-    let config_path = dir.path().join("trame.yml");
-    fs::write(&config_path, yaml).expect("write trame.yml");
+    let config_path = dir.path().join("diavola.yml");
+    fs::write(&config_path, yaml).expect("write diavola.yml");
     config_loader::load_config(&config_path).expect("load config")
 }
 
@@ -38,7 +38,7 @@ processes:
         name: "test-project".to_string(),
         base_dir: dir.path().to_path_buf(),
         config_source: ProjectSource::ProjectFile,
-        config_path: dir.path().join("trame.yml"),
+        config_path: dir.path().join("diavola.yml"),
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
@@ -110,7 +110,7 @@ processes:
         name: "fail-project".to_string(),
         base_dir: dir.path().to_path_buf(),
         config_source: ProjectSource::ProjectFile,
-        config_path: dir.path().join("trame.yml"),
+        config_path: dir.path().join("diavola.yml"),
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };

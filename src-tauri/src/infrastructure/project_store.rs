@@ -29,7 +29,7 @@ pub struct ProjectStore {
 
 impl ProjectStore {
     pub fn new() -> Result<Self, AppError> {
-        let project_dirs = ProjectDirs::from("", "", "trame")
+        let project_dirs = ProjectDirs::from("", "", "diavola")
             .ok_or_else(|| AppError::project_store("unable to resolve OS config directory"))?;
         let root_dir = project_dirs.config_dir().to_path_buf();
         fs::create_dir_all(root_dir.join(PROJECT_CONFIGS_DIR_NAME))?;
@@ -113,7 +113,7 @@ impl ProjectStore {
         let name = base_dir
             .file_name()
             .and_then(|value| value.to_str())
-            .unwrap_or("trame project")
+            .unwrap_or("diavola project")
             .to_string();
 
         let existing = self.load()?.into_iter().find(|project| {
@@ -159,7 +159,7 @@ impl ProjectStore {
         let name = base_dir
             .file_name()
             .and_then(|value| value.to_str())
-            .unwrap_or("trame project")
+            .unwrap_or("diavola project")
             .to_string();
         let now = Utc::now();
 
@@ -234,7 +234,7 @@ impl ProjectStore {
 
         let config_path = match config_source {
             ProjectSource::ProjectFile => {
-                detected_project_file.unwrap_or_else(|| canonical_base_dir.join("trame.yml"))
+                detected_project_file.unwrap_or_else(|| canonical_base_dir.join("diavola.yml"))
             }
             ProjectSource::AppConfigFile => self.app_config_path(&project_id),
         };
@@ -263,7 +263,7 @@ impl ProjectStore {
         let name = canonical_base_dir
             .file_name()
             .and_then(|value| value.to_str())
-            .unwrap_or("trame")
+            .unwrap_or("diavola")
             .to_string();
 
         self.prepare_project_record(
@@ -303,17 +303,17 @@ mod tests {
     }
 
     fn test_store() -> (ProjectStore, PathBuf) {
-        let root = temp_dir("trame-project-store");
+        let root = temp_dir("diavola-project-store");
         let store = ProjectStore::from_root_dir(root.clone()).expect("create project store");
         (store, root)
     }
 
     fn create_project_dir(with_project_file: bool) -> PathBuf {
-        let base_dir = temp_dir("trame-project");
+        let base_dir = temp_dir("diavola-project");
         fs::create_dir_all(&base_dir).expect("create project dir");
         if with_project_file {
             fs::write(
-                base_dir.join("trame.yml"),
+                base_dir.join("diavola.yml"),
                 "processes:\n  web:\n    kind: service\n    cmd: deno task dev\n",
             )
             .expect("write project config");
@@ -338,7 +338,7 @@ mod tests {
             name: "alpha".to_string(),
             base_dir: create_project_dir(false),
             config_source: ProjectSource::ProjectFile,
-            config_path: root.join("alpha/trame.yml"),
+            config_path: root.join("alpha/diavola.yml"),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn prepares_project_file_record_and_edits_trame_yml() {
+    fn prepares_project_file_record_and_edits_diavola_yml() {
         let (store, root) = test_store();
         let base_dir = create_project_dir(true);
 
@@ -368,7 +368,7 @@ mod tests {
             .expect("prepare record");
 
         assert_eq!(record.config_source, ProjectSource::ProjectFile);
-        assert_eq!(record.config_path, base_dir.join("trame.yml"));
+        assert_eq!(record.config_path, base_dir.join("diavola.yml"));
 
         store
             .save_project_config_raw(
@@ -377,7 +377,7 @@ mod tests {
             )
             .expect("edit project config");
 
-        assert!(fs::read_to_string(base_dir.join("trame.yml"))
+        assert!(fs::read_to_string(base_dir.join("diavola.yml"))
             .expect("read project config")
             .contains("cargo run"));
         assert!(!store.app_config_path(&record.id).exists());
@@ -415,7 +415,7 @@ mod tests {
         let saved_yaml = fs::read_to_string(&record.config_path).expect("read app config");
         assert!(saved_yaml.contains("baseDir:"));
         assert!(saved_yaml.contains(&record.base_dir.display().to_string()));
-        assert!(!base_dir.join("trame.yml").exists());
+        assert!(!base_dir.join("diavola.yml").exists());
 
         let _ = fs::remove_dir_all(root);
         let _ = fs::remove_dir_all(base_dir);
@@ -446,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn prepares_workspace_project_for_missing_trame_yml() {
+    fn prepares_workspace_project_for_missing_diavola_yml() {
         let (store, root) = test_store();
         let base_dir = create_project_dir(false);
 
@@ -455,7 +455,7 @@ mod tests {
             .expect("prepare workspace project");
 
         assert_eq!(record.base_dir, base_dir);
-        assert_eq!(record.config_path, base_dir.join("trame.yml"));
+        assert_eq!(record.config_path, base_dir.join("diavola.yml"));
 
         let _ = fs::remove_dir_all(root);
         let _ = fs::remove_dir_all(base_dir);
@@ -484,7 +484,7 @@ mod tests {
     fn prepares_project_record_from_explicit_config_path() {
         let (store, root) = test_store();
         let base_dir = create_project_dir(false);
-        let config_path = base_dir.join("custom-trame.yml");
+        let config_path = base_dir.join("custom-diavola.yml");
         fs::write(
             &config_path,
             "processes:\n  web:\n    kind: service\n    cmd: deno task dev\n",

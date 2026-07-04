@@ -38,7 +38,7 @@
         {projectSourceLabel}
       </div>
       <div class="mt-1 wrap-break-word text-xs leading-5 text-text-subtle">
-        {project?.configPath ?? "The backend will resolve trame.yml when a project is selected."}
+        {project?.configPath ?? "The backend will resolve diavola.yml when a project is selected."}
       </div>
     </div>
   </div>

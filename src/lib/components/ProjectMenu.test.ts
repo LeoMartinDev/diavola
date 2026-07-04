@@ -7,10 +7,10 @@ import type { Selection } from "$lib/stores/runtime.svelte";
 
 const project: ProjectRecord = {
   id: "p1",
-  name: "Trame",
-  baseDir: "/home/leo/trame",
+  name: "Diavola",
+  baseDir: "/home/leo/diavola",
   configSource: "projectFile",
-  configPath: "/home/leo/trame/trame.yml",
+  configPath: "/home/leo/diavola/diavola.yml",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
@@ -25,7 +25,7 @@ const process: ProcessSnapshot = {
 const terminal: TerminalSnapshot = {
   terminalId: "t1",
   title: "bash",
-  cwd: "/home/leo/trame",
+  cwd: "/home/leo/diavola",
   createdAt: "2026-01-01T00:00:00.000Z",
   isOpen: true,
 };

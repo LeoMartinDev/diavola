@@ -1,7 +1,7 @@
-# Trame
+# Diavola
 
-**Trame** is a desktop app that launches and supervises your project's
-development commands. Describe your processes in a `trame.yml` file, and Trame
+**Diavola** is a desktop app that launches and supervises your project's
+development commands. Describe your processes in a `diavola.yml` file, and Diavola
 starts everything in the right order, checks that each service is ready, and
 shuts it all down cleanly.
 
@@ -12,10 +12,10 @@ file, one click, everything runs.
 
 ## How It Works
 
-1. Create a `trame.yml` in your project root
+1. Create a `diavola.yml` in your project root
 2. List your commands (API, database, worker, etc.)
-3. Open Trame, import your project
-4. Click **Start** — Trame launches everything in dependency order, waits for
+3. Open Diavola, import your project
+4. Click **Start** — Diavola launches everything in dependency order, waits for
    each service to be ready, then moves to the next
 5. Watch logs per process, use the integrated terminal, and click **Stop** to
    shut everything down
@@ -25,7 +25,7 @@ file, one click, everything runs.
 ## Configuration Reference
 
 The config file is plain YAML. Edit it with any text editor or directly inside
-Trame using the built-in form editor.
+Diavola using the built-in form editor.
 
 ### Structure
 
@@ -51,12 +51,12 @@ processes:           # required — at least one process
 
 | Kind | Behavior |
 |------|----------|
-| `task` | Runs a command that finishes on its own (install, migrate, compile). Trame waits for it to exit. If it fails (non-zero exit), everything stops. |
-| `service` | Runs a long-lived process (server, worker). Trame starts it and monitors its readiness. If it stops unexpectedly, everything stops. |
+| `task` | Runs a command that finishes on its own (install, migrate, compile). Diavola waits for it to exit. If it fails (non-zero exit), everything stops. |
+| `service` | Runs a long-lived process (server, worker). Diavola starts it and monitors its readiness. If it stops unexpectedly, everything stops. |
 
 ### Dependencies (`dependsOn`)
 
-Processes start in dependency order. Trame resolves the graph, detects cycles,
+Processes start in dependency order. Diavola resolves the graph, detects cycles,
 and reports them as errors.
 
 | Condition | Use with | Meaning |
@@ -75,7 +75,7 @@ api:
 
 ### Readiness Checks (`ready`)
 
-For `service` processes, Trame needs to know when the service is actually ready.
+For `service` processes, Diavola needs to know when the service is actually ready.
 There are four check types:
 
 #### Log
@@ -246,7 +246,7 @@ the app.
 
 ## Editing Configs
 
-Trame offers two modes for editing `trame.yml`:
+Diavola offers two modes for editing `diavola.yml`:
 
 - **Form mode** — structured fields for each option; no YAML knowledge needed
 - **Raw YAML mode** — built-in text editor with full YAML support and
@@ -255,7 +255,7 @@ Trame offers two modes for editing `trame.yml`:
 ## Launching
 
 ```bash
-deno task app path/to/trame.yml   # launch with a config
+deno task app path/to/diavola.yml   # launch with a config
 deno task app                     # launch, then import a project from the UI
 ```
 
@@ -264,11 +264,11 @@ scratch, and start/stop your project.
 
 ## Tips
 
-- Always use a `ready` check for services — without one, Trame moves on
+- Always use a `ready` check for services — without one, Diavola moves on
   immediately
 - Prefer `type: log` when your service prints a startup message; use `type:
   http` for services with a health endpoint
 - `timeoutMs` defaults to **60 seconds**; increase it if your service starts
   slowly
 - Failed tasks stop everything; fix the error and restart
-- Multi-project: open multiple Trame windows for separate projects
+- Multi-project: open multiple Diavola windows for separate projects

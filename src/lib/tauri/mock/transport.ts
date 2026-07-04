@@ -280,7 +280,7 @@ export async function invoke<T = unknown>(
       const snapshot: TerminalSnapshot = {
         terminalId: request.terminalId,
         title: `mock terminal (${request.terminalId})`,
-        cwd: "/home/leo/dev/trame",
+        cwd: "/home/leo/dev/diavola",
         createdAt: new Date().toISOString(),
         isOpen: false,
       };
@@ -322,7 +322,7 @@ function projectFallback(projectId: ProjectId): ProjectRecord {
     name: projectId,
     baseDir: `/home/leo/dev/${projectId}`,
     configSource: "projectFile",
-    configPath: `/home/leo/dev/${projectId}/trame.yml`,
+    configPath: `/home/leo/dev/${projectId}/diavola.yml`,
     createdAt: now,
     updatedAt: now,
   };

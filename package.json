@@ -1,9 +1,29 @@
 {
-  "name": "trame",
-  "version": "0.1.0",
-  "description": "",
+  "name": "diavola",
+  "version": "0.1.1",
+  "description": "Desktop dev process launcher — one file, one click, everything runs.",
   "type": "module",
   "license": "MIT",
+  "bin": {
+    "diavola": "./npm/bin.cjs"
+  },
+  "files": [
+    "npm/"
+  ],
+  "keywords": [
+    "diavola",
+    "devtools",
+    "process-manager",
+    "process-supervisor",
+    "task-runner",
+    "developer-tools",
+    "tauri",
+    "desktop-app"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LeoMartinDev/trame"
+  },
   "dependencies": {
     "@codemirror/commands": "^6.10.0",
     "@codemirror/language": "^6.11.3",

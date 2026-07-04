@@ -86,7 +86,7 @@ class RuntimeStore {
 
   get windowTitle(): string {
     const proj = this.project;
-    if (!proj) return "Trame";
+    if (!proj) return "Diavola";
 
     const relPath = this.gitInfo?.displayPath ?? proj.name;
 
@@ -97,7 +97,7 @@ class RuntimeStore {
       context = ` — ${this.gitInfo.branch}`;
     }
 
-    return `${relPath}${context} — Trame`;
+    return `${relPath}${context} — Diavola`;
   }
 
   #syncGitPolling() {

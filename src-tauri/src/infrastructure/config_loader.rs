@@ -5,17 +5,17 @@ use std::{
 };
 
 use crate::{
-    domain::config::{ReadyConfig, TrameConfig},
+    domain::config::{ReadyConfig, DiavolaConfig},
     error::{AppError, ErrorCode},
 };
 
-const PROJECT_CONFIG_FILE_NAME: &str = "trame.yml";
+const PROJECT_CONFIG_FILE_NAME: &str = "diavola.yml";
 
 #[derive(Debug, Clone)]
 pub struct LoadedProjectConfig {
     pub config_path: PathBuf,
     pub base_dir: PathBuf,
-    pub config: TrameConfig,
+    pub config: DiavolaConfig,
     pub raw_yaml: String,
 }
 
@@ -27,7 +27,7 @@ pub fn load_config(config_path: &Path) -> Result<LoadedProjectConfig, AppError> 
         ))
     })?;
     let raw_yaml = fs::read_to_string(&canonical_path)?;
-    let config: TrameConfig = serde_yaml::from_str(&raw_yaml)?;
+    let config: DiavolaConfig = serde_yaml::from_str(&raw_yaml)?;
     validate_graph(&config)?;
 
     let base_dir = canonical_path
@@ -54,7 +54,7 @@ pub fn parse_config_document(
     config_path: &Path,
     raw_yaml: &str,
 ) -> Result<LoadedProjectConfig, AppError> {
-    let config: TrameConfig = serde_yaml::from_str(raw_yaml)?;
+    let config: DiavolaConfig = serde_yaml::from_str(raw_yaml)?;
     validate_graph(&config)?;
     let canonical_path = canonicalize_for_write_target(config_path)?;
     let base_dir = canonical_path
@@ -99,13 +99,13 @@ fn find_config_in_dir_or_parents(start_dir: &Path) -> Option<PathBuf> {
 }
 
 /// Walk up from the current working directory to the filesystem root
-/// looking for `trame.yml`. Returns the first match, or `None`.
+/// looking for `diavola.yml`. Returns the first match, or `None`.
 pub fn find_config_in_cwd_or_parents() -> Option<PathBuf> {
     let current_dir = std::env::current_dir().ok()?;
     find_config_in_dir_or_parents(&current_dir)
 }
 
-pub fn validate_graph(config: &TrameConfig) -> Result<(), AppError> {
+pub fn validate_graph(config: &DiavolaConfig) -> Result<(), AppError> {
     if config.processes.is_empty() {
         return Err(AppError::validation_with_code(
             "configuration must declare at least one process",
@@ -189,7 +189,7 @@ fn validate_ready_config(process_name: &str, ready: &ReadyConfig) -> Result<(), 
 
 fn visit_process(
     name: &str,
-    config: &TrameConfig,
+    config: &DiavolaConfig,
     visiting: &mut HashSet<String>,
     visited: &mut HashSet<String>,
 ) -> Result<(), AppError> {
@@ -245,7 +245,7 @@ fn canonicalize_for_write_target(path: &Path) -> Result<PathBuf, AppError> {
     Ok(canonical_parent.join(file_name))
 }
 
-pub fn serialize_config(config: &TrameConfig) -> Result<String, AppError> {
+pub fn serialize_config(config: &DiavolaConfig) -> Result<String, AppError> {
     serde_yaml::to_string(config).map_err(|error| AppError::config(error.to_string()))
 }
 
@@ -256,9 +256,9 @@ mod tests {
     use super::*;
 
     fn parse(raw_yaml: &str) -> Result<LoadedProjectConfig, AppError> {
-        let base_dir = std::env::temp_dir().join("trame-config-loader");
+        let base_dir = std::env::temp_dir().join("diavola-config-loader");
         fs::create_dir_all(&base_dir).expect("create config loader temp dir");
-        parse_config_document(&base_dir.join("trame.yml"), raw_yaml)
+        parse_config_document(&base_dir.join("diavola.yml"), raw_yaml)
     }
 
     #[test]
@@ -285,7 +285,7 @@ processes:
         )
         .expect("config should parse");
 
-        assert_eq!(loaded.base_dir, Path::new("/tmp/trame-config-loader"));
+        assert_eq!(loaded.base_dir, Path::new("/tmp/diavola-config-loader"));
         assert_eq!(loaded.config.processes["web"].env["PORT"], "5173");
         assert!(loaded.config.processes.contains_key("setup"));
         assert_eq!(
@@ -405,9 +405,9 @@ processes:
     }
 
     #[test]
-    fn finds_project_trame_yml() {
+    fn finds_project_diavola_yml() {
         let root =
-            std::env::temp_dir().join(format!("trame-config-loader-test-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("diavola-config-loader-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).expect("create temp project");
         let config_path = root.join(PROJECT_CONFIG_FILE_NAME);
         fs::write(&config_path, "processes: {}\n").expect("write config");
@@ -423,7 +423,7 @@ processes:
     #[test]
     fn finds_config_in_given_directory() {
         let root =
-            std::env::temp_dir().join(format!("trame-config-loader-cwd-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("diavola-config-loader-cwd-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).expect("create temp dir");
         let config_path = root.join(PROJECT_CONFIG_FILE_NAME);
         fs::write(&config_path, "processes: {}\n").expect("write config");
@@ -438,7 +438,7 @@ processes:
     #[test]
     fn finds_config_in_parent_directory() {
         let root = std::env::temp_dir().join(format!(
-            "trame-config-loader-parent-{}",
+            "diavola-config-loader-parent-{}",
             uuid::Uuid::new_v4()
         ));
         let child = root.join("child");
@@ -456,7 +456,7 @@ processes:
     #[test]
     fn returns_none_when_no_config_found() {
         let root =
-            std::env::temp_dir().join(format!("trame-config-loader-none-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("diavola-config-loader-none-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).expect("create temp dir");
 
         let result = find_config_in_dir_or_parents(&root);

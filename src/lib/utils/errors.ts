@@ -1,5 +1,5 @@
 const ERROR_MESSAGES: Record<string, string> = {
-  configNotFound: "Config file not found. Check that trame.yml exists.",
+  configNotFound: "Config file not found. Check that diavola.yml exists.",
   projectAlreadyRunning: "A project is already running in this window.",
   launchLocked: "Project is locked by command-line launch and cannot be modified.",
   processCannotRestart: "Tasks cannot be restarted — only services support restart.",

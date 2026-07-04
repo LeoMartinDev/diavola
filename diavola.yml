@@ -2,7 +2,7 @@ processes:
   setup:
     kind: task
     env:
-      EXAMPLE_ENV: "hello-from-devapp"
+      EXAMPLE_ENV: "hello-from-diavola"
     cmd: |
       deno eval 'console.log("setup complete:", Deno.env.get("EXAMPLE_ENV"))'
 

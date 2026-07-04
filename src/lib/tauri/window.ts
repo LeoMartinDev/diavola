@@ -7,7 +7,7 @@ export function canUseTauriWindow(): boolean {
 }
 
 // Tauri's default (unlabeled) window is created with the label "main"; every
-// other window Trame opens (e.g. `project-<id>` per-project windows) has a
+// other window Diavola opens (e.g. `project-<id>` per-project windows) has a
 // distinct label. We designate "main" the sole owner of update
 // checking/downloading so multiple open windows don't each independently
 // check for and download the same update. Outside Tauri (browser/dev-server)

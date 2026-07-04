@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowB
 
 use crate::{
     domain::{
-        config::TrameConfig,
+        config::DiavolaConfig,
         project::{ProjectId, ProjectRecord},
         runtime::RunSessionSnapshot,
         terminal::{TerminalSessionId, TerminalSnapshot},
@@ -30,7 +30,7 @@ pub struct LoadProjectConfigRequest {
 pub struct ProjectConfigDocument {
     pub project: ProjectRecord,
     pub yaml: String,
-    pub config: TrameConfig,
+    pub config: DiavolaConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -396,7 +396,7 @@ pub async fn open_project_window(
 
     let url = WebviewUrl::App(format!("?projectId={project_id}&autorun=1").into());
     let win_builder = WebviewWindowBuilder::new(&app_handle, label, url)
-        .title(format!("{} — Trame", project.name));
+        .title(format!("{} — Diavola", project.name));
 
     #[cfg(target_os = "macos")]
     let win_builder = win_builder.title_bar_style(TitleBarStyle::Overlay);
@@ -425,7 +425,7 @@ mod tests {
             name: "demo-app".to_string(),
             base_dir: PathBuf::from("/tmp/demo-app"),
             config_source: ProjectSource::ProjectFile,
-            config_path: PathBuf::from("/tmp/demo-app/trame.yml"),
+            config_path: PathBuf::from("/tmp/demo-app/diavola.yml"),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

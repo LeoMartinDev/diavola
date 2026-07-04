@@ -113,11 +113,11 @@
 
     const onOpenConfig = () => openConfigDialog();
 
-    document.addEventListener("trame:open-config-dialog", onOpenConfig);
+    document.addEventListener("diavola:open-config-dialog", onOpenConfig);
 
     return () => {
       void runtimeStore.teardown();
-      document.removeEventListener("trame:open-config-dialog", onOpenConfig);
+      document.removeEventListener("diavola:open-config-dialog", onOpenConfig);
     };
   });
 
@@ -192,7 +192,7 @@
                 <p class="mt-2 text-sm leading-6 text-text-subtle">
                   {session
                     ? "Choose an item in the sidebar to view its logs or terminal."
-                    : "Open Runtime config in Settings to add processes and create trame.yml in this workspace."}
+                    : "Open Runtime config in Settings to add processes and create diavola.yml in this workspace."}
                 </p>
               </div>
             </div>

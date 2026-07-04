@@ -10,7 +10,7 @@ const loadedProject: ProjectRecord = {
   name: "Demo app",
   baseDir: "/tmp/demo-app",
   configSource: "projectFile",
-  configPath: "/tmp/demo-app/trame.yml",
+  configPath: "/tmp/demo-app/diavola.yml",
   createdAt: "2026-06-27T00:00:00Z",
   updatedAt: "2026-06-27T00:00:00Z",
 };

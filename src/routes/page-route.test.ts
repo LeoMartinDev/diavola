@@ -32,7 +32,7 @@ describe("workspace empty state", () => {
   it("shows a settings hint instead of the welcome screen when no config is loaded", () => {
     const { queryByText, getByText } = render(Page);
 
-    expect(queryByText("Welcome to Trame")).toBeNull();
+    expect(queryByText("Welcome to Diavola")).toBeNull();
     expect(getByText(/Open Runtime config in Settings to add processes/)).toBeInTheDocument();
   });
 });

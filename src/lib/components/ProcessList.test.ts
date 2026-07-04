@@ -17,7 +17,7 @@ function makeProcess(overrides: Partial<ProcessSnapshot> = {}): ProcessSnapshot 
 const terminal: TerminalSnapshot = {
   terminalId: "t1",
   title: "bash",
-  cwd: "/home/leo/trame",
+  cwd: "/home/leo/diavola",
   createdAt: "2026-01-01T00:00:00.000Z",
   isOpen: true,
 };

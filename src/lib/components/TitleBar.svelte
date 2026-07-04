@@ -24,7 +24,7 @@
   }
 
   function openConfigDialog() {
-    document.dispatchEvent(new CustomEvent("trame:open-config-dialog"));
+    document.dispatchEvent(new CustomEvent("diavola:open-config-dialog"));
   }
 </script>
 
@@ -40,7 +40,7 @@
 
   <div class="titlebar-center" data-tauri-no-drag>
     <ProjectChip
-      name={project?.name ?? "Trame"}
+      name={project?.name ?? "Diavola"}
       baseDir={project?.baseDir ?? null}
       {gitInfo}
       {sessionActive}

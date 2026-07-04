@@ -7,7 +7,7 @@
 
 import type {
   DevappConfig,
-  TrameConfig,
+  DiavolaConfig,
   ProcessLogPayload,
   ProjectConfigDocument,
   ProjectRecord,
@@ -40,7 +40,7 @@ function projectRecord(
     name,
     baseDir,
     configSource: "projectFile",
-    configPath: `${baseDir}/trame.yml`,
+    configPath: `${baseDir}/diavola.yml`,
     createdAt: NOW,
     updatedAt: NOW,
   };
@@ -54,7 +54,7 @@ const denoRunnerYaml = `processes:
   setup:
     kind: task
     env:
-      EXAMPLE_ENV: "hello-from-trame"
+      EXAMPLE_ENV: "hello-from-diavola"
     cmd: |
       deno eval 'console.log("setup complete:", Deno.env.get("EXAMPLE_ENV"))'
 
@@ -81,12 +81,12 @@ const denoRunnerYaml = `processes:
       durationMs: 500
 `;
 
-const denoRunnerConfig: TrameConfig = {
+const denoRunnerConfig: DiavolaConfig = {
   processes: {
     setup: {
       kind: "task",
       cmd: 'deno eval \'console.log("setup complete:", Deno.env.get("EXAMPLE_ENV"))\'',
-      env: { EXAMPLE_ENV: "hello-from-trame" },
+      env: { EXAMPLE_ENV: "hello-from-diavola" },
       dependsOn: {},
     },
     api: {
@@ -136,7 +136,7 @@ function log(
 
 const denoRunnerLogs: MockProcessLogs = {
   "proc-setup": [
-    log("mock-session-deno-runner", "proc-setup", "setup", "stdout", "setup complete: hello-from-trame", "2026-06-20T09:00:01.400Z"),
+    log("mock-session-deno-runner", "proc-setup", "setup", "stdout", "setup complete: hello-from-diavola", "2026-06-20T09:00:01.400Z"),
     log("mock-session-deno-runner", "proc-setup", "setup", "system", "process exited with code 0", "2026-06-20T09:00:01.450Z"),
   ],
   "proc-api": [
@@ -186,13 +186,13 @@ export function mockProjectFixture(
 export const mockTerminalSnapshot = (terminalId: string): TerminalSnapshot => ({
   terminalId,
   title: `mock terminal (${terminalId})`,
-  cwd: "/home/leo/dev/trame",
+  cwd: "/home/leo/dev/diavola",
   createdAt: NOW,
   isOpen: true,
 });
 
 export const MOCK_TERMINAL_BANNER =
-  "\x1b[36mtrame mock terminal\x1b[0m\r\n" +
+  "\x1b[36mdiavola mock terminal\x1b[0m\r\n" +
   "This is a browser-only stand-in; no shell is attached.\r\n" +
   "Keystrokes are accepted but produce no output.\r\n\r\n" +
   "$ ";

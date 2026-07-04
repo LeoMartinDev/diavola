@@ -17,7 +17,7 @@ const project = {
   name: "demo-app",
   baseDir: "/tmp/demo-app",
   configSource: "projectFile" as const,
-  configPath: "/tmp/demo-app/trame.yml",
+  configPath: "/tmp/demo-app/diavola.yml",
   createdAt: "2026-07-03T00:00:00.000Z",
   updatedAt: "2026-07-03T00:00:00.000Z",
 };

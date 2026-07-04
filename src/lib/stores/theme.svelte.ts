@@ -1,6 +1,6 @@
 type Theme = "auto" | "light" | "dark";
 
-const STORAGE_KEY = "trame-theme";
+const STORAGE_KEY = "diavola-theme";
 
 function resolveTheme(theme: Theme, systemDark: boolean): "light" | "dark" {
   if (theme === "auto") return systemDark ? "dark" : "light";

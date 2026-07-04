@@ -84,8 +84,74 @@ jobs:
         with:
           tauriScript: "deno task tauri"
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: Trame ${{ env.RELEASE_VERSION }}
+          releaseName: Diavola ${{ env.RELEASE_VERSION }}
           prerelease: false
           generateReleaseNotes: true
-          uploadUpdaterJson: true
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+      - name: Package raw binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          BIN=$(find src-tauri/target -path "*/release/diavola" -maxdepth 4 -type f | head -1)
+          gzip -c "$BIN" > diavola-linux-amd64.gz
+
+      - name: Package raw binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          APP=$(find src-tauri/target -path "*/release/bundle/macos/Diavola.app" -maxdepth 5 | head -1)
+          tar -czf diavola-darwin-arm64.tar.gz -C "$(dirname "$APP")" Diavola.app
+
+      - name: Package raw binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $BIN = Get-ChildItem -Path src-tauri/target -Recurse -Filter diavola.exe | Where-Object { $_.FullName -like "*\release\*" } | Select-Object -First 1
+          Copy-Item $BIN.FullName diavola-windows-amd64.exe
+
+      - name: Upload raw binary to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            ASSET="diavola-linux-amd64.gz"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            ASSET="diavola-darwin-arm64.tar.gz"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            ASSET="diavola-windows-amd64.exe"
+          fi
+          gh release upload "$RELEASE_TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+
+  npm-publish:
+    needs: release
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Compute version
+        id: version
+        run: |
+          VERSION=$(deno run --allow-run=git scripts/ci_version.ts --dry-run)
+          APP_VERSION=$(echo "$VERSION" | grep "^APP_VERSION=" | cut -d= -f2)
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set version in package.json
+        run: npm version "${{ steps.version.outputs.APP_VERSION }}" --no-git-tag-version --allow-same-version
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

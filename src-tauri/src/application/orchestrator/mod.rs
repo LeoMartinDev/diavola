@@ -810,7 +810,7 @@ mod tests {
             name: name.to_string(),
             base_dir: std::env::temp_dir(),
             config_source: crate::domain::project::ProjectSource::ProjectFile,
-            config_path: std::env::temp_dir().join("trame.yml"),
+            config_path: std::env::temp_dir().join("diavola.yml"),
             created_at: now,
             updated_at: now,
         }
@@ -818,9 +818,9 @@ mod tests {
 
     fn test_loaded_config() -> crate::infrastructure::config_loader::LoadedProjectConfig {
         crate::infrastructure::config_loader::LoadedProjectConfig {
-            config_path: std::env::temp_dir().join("trame.yml"),
+            config_path: std::env::temp_dir().join("diavola.yml"),
             base_dir: std::env::temp_dir(),
-            config: crate::domain::config::TrameConfig {
+            config: crate::domain::config::DiavolaConfig {
                 env: Default::default(),
                 processes: Default::default(),
             },

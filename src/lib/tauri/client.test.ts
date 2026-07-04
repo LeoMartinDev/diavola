@@ -10,8 +10,8 @@ import { setWindowTitle } from "./client";
 
 describe("client window helper", () => {
   it("routes title updates through the shared window seam", async () => {
-    await expect(setWindowTitle("Trame")).resolves.toBeUndefined();
+    await expect(setWindowTitle("Diavola")).resolves.toBeUndefined();
     expect(windowHelpers.setWindowTitle).toHaveBeenCalledOnce();
-    expect(windowHelpers.setWindowTitle).toHaveBeenCalledWith("Trame");
+    expect(windowHelpers.setWindowTitle).toHaveBeenCalledWith("Diavola");
   });
 });

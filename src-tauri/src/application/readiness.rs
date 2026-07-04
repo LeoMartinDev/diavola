@@ -241,7 +241,7 @@ mod tests {
     #[tokio::test]
     async fn command_readiness_uses_environment_and_base_dir() {
         let base_dir =
-            std::env::temp_dir().join(format!("trame-readiness-command-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("diavola-readiness-command-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&base_dir).expect("create temp base dir");
         std::fs::write(base_dir.join("marker.txt"), "ready").expect("write marker");
         let mut env = HashMap::new();

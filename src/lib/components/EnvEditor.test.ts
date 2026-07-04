@@ -7,7 +7,7 @@ describe("EnvEditor", () => {
   it("uses distinct accessible names for global and process variable rows", () => {
     const { getByRole } = render(EnvEditor, {
       props: {
-        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-trame" }],
+        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-diavola" }],
         issueFor: () => null,
         onAdd: vi.fn(),
         onRemove: vi.fn(),
@@ -33,7 +33,7 @@ describe("EnvEditor", () => {
   it("uses an icon-only remove action for variable rows", () => {
     const { container, getByRole, queryByText } = render(EnvEditor, {
       props: {
-        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-trame" }],
+        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-diavola" }],
         issueFor: () => null,
         onAdd: vi.fn(),
         onRemove: vi.fn(),
@@ -49,7 +49,7 @@ describe("EnvEditor", () => {
     const { getByRole, getByText } = render(EnvEditor, {
       props: {
         processId: "process-1",
-        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-trame" }],
+        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-diavola" }],
         issueFor: (key: string) =>
           key === "process.process-1.env.env-1.key" ? "Environment keys must be unique." : null,
         onAdd: vi.fn(),
@@ -72,7 +72,7 @@ describe("EnvEditor", () => {
     const { getByRole } = render(EnvEditor, {
       props: {
         processId: "process-1",
-        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-trame" }],
+        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-diavola" }],
         issueFor: () => null,
         onAdd,
         onRemove,
@@ -92,7 +92,7 @@ describe("EnvEditor", () => {
   it("keeps the add action width consistent", () => {
     const { getByRole } = render(EnvEditor, {
       props: {
-        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-trame" }],
+        rows: [{ id: "env-1", key: "EXAMPLE_ENV", value: "hello-from-diavola" }],
         issueFor: () => null,
         onAdd: vi.fn(),
         onRemove: vi.fn(),

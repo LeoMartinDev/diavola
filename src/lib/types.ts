@@ -42,12 +42,12 @@ export type ProcessConfig = {
   ready?: ReadyConfig;
 };
 
-export type TrameConfig = {
+export type DiavolaConfig = {
   env?: Record<string, string>;
   processes: Record<string, ProcessConfig>;
 };
 
-export type DevappConfig = TrameConfig;
+export type DevappConfig = DiavolaConfig;
 
 export type ProcessStatus =
   | "pending"

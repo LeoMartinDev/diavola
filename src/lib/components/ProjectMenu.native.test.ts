@@ -13,10 +13,10 @@ import type { Selection } from "$lib/stores/runtime.svelte";
 
 const project: ProjectRecord = {
   id: "p1",
-  name: "Trame",
-  baseDir: "/home/leo/trame",
+  name: "Diavola",
+  baseDir: "/home/leo/diavola",
   configSource: "projectFile",
-  configPath: "/home/leo/dev/devapp/trame.yml",
+  configPath: "/home/leo/dev/devapp/diavola.yml",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
