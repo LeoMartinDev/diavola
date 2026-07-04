@@ -3,7 +3,6 @@ use std::fs;
 use chrono::Utc;
 use tempfile::TempDir;
 
-use tauri::Manager;
 use diavola_lib::{
     application::orchestrator::ProcessOrchestrator,
     domain::{

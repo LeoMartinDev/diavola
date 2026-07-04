@@ -448,6 +448,7 @@ impl ProcessOrchestrator {
         let process_name_for_wait = process_name.to_string();
         let exit_app_handle = app_handle.clone();
         let exit_window_key = window_key.to_string();
+        #[cfg(unix)]
         let wait_pid = child_pid;
         thread::spawn(move || {
             tauri::async_runtime::block_on(async move {
