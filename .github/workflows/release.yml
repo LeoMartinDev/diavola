@@ -51,7 +51,7 @@ jobs:
           if [[ "${{ steps.tag.outputs.is_tag }}" == "true" ]]; then
             echo "app_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           else
-            VERSION=$(deno run --allow-read scripts/ci_version.ts --dry-run)
+            VERSION=$(deno run --allow-read --allow-env scripts/ci_version.ts --dry-run)
             echo "app_version=$(echo "$VERSION" | grep '^APP_VERSION=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
           fi
 
