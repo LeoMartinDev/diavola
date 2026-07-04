@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDNjE2NjI5ODNCRjI4REMKUldUY0tMK0RLV1poUEZxSnB6WEJETlJBVVZyeEtVTWFzbFRtNGMyQ3JBRXRGcU4yMUlhZG4zdnMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1MTdGRjMyNzlCOUQ0RQpSV1JPblpzbjgzOVJESGp6ZGpEeTlJcEw5NWpHWkw4SlJZUGp6Qk13L21KaVdKZDJwNGozbnltUgo=",
       "endpoints": [
         "https://github.com/LeoMartinDev/diavola/releases/latest/download/latest.json"
       ],
