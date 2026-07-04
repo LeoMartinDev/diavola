@@ -48,7 +48,7 @@ jobs:
 
   release:
     needs: check
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     environment: Deploy
     permissions:
       contents: write
@@ -136,7 +136,7 @@ jobs:
 
   npm-publish:
     needs: [release, check]
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
