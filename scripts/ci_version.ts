@@ -37,7 +37,8 @@ async function patchCargoVersion(path: string, version: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const version = await readPackageVersion();
+  const ciVersion = Deno.env.get("CI_VERSION");
+  const version = ciVersion || await readPackageVersion();
   const info = formatVersion(version);
 
   if (dryRun) {
@@ -48,6 +49,7 @@ async function main(): Promise<void> {
     return;
   }
 
+  await patchJson(PACKAGE_JSON, info.appVersion);
   await patchJson(TAURI_CONF, info.appVersion);
   await patchCargoVersion(CARGO_TOML, info.appVersion);
 

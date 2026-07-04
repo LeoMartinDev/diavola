@@ -95,10 +95,9 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Compute version and patch files
-        run: |
-          VERSION="${{ needs.check.outputs.app_version }}"
-          jq ".version = \"$VERSION\"" package.json > /tmp/pkg.json && mv /tmp/pkg.json package.json
-          deno run --allow-read --allow-write --allow-env scripts/ci_version.ts
+        env:
+          CI_VERSION: ${{ needs.check.outputs.app_version }}
+        run: deno run --allow-read --allow-write --allow-env scripts/ci_version.ts
 
       - uses: tauri-apps/tauri-action@v0
         env:
