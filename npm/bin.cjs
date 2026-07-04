@@ -126,12 +126,11 @@ async function downloadAndRun() {
 
 function runBinary(binPath, platform) {
   console.log("Launching Diavola...");
-  process.argv.shift();
   const opts = { stdio: "inherit" };
   if (!platform.startsWith("windows")) {
     opts.detached = true;
   }
-  spawn(binPath, process.argv, opts).unref();
+  spawn(binPath, process.argv.slice(2), opts).unref();
 }
 
 async function downloadFile(url, dest) {
