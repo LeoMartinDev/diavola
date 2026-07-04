@@ -111,7 +111,7 @@ jobs:
       - name: Package raw binary (macOS)
         if: runner.os == 'macOS'
         run: |
-          APP=$(find src-tauri/target -path "*/release/bundle/macos/Diavola.app" -maxdepth 5 | head -1)
+          APP=$(find src-tauri/target -path "*/release/bundle/macos/Diavola.app" | head -1)
           tar -czf diavola-darwin-arm64.tar.gz -C "$(dirname "$APP")" Diavola.app
 
       - name: Package raw binary (Windows)
@@ -121,6 +121,7 @@ jobs:
           Copy-Item $BIN.FullName diavola-windows-amd64.exe
 
       - name: Upload raw binary to release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
