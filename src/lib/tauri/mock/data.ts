@@ -6,7 +6,6 @@
 // shapes declared in $lib/types.
 
 import type {
-  DevappConfig,
   DiavolaConfig,
   ProcessLogPayload,
   ProjectConfigDocument,
@@ -20,7 +19,7 @@ export type MockProcessLogs = Record<string, ProcessLogPayload[]>;
 export type MockProjectFixture = {
   record: ProjectRecord;
   yaml: string;
-  config: DevappConfig;
+  config: DiavolaConfig;
   /** Initial session snapshot used when the project is started. */
   sessionTemplate: RunSessionSnapshot;
   /** Logs emitted per process when the project is started. */

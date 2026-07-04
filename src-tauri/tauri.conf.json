@@ -37,9 +37,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZEMURDMjRDOEM3QTY0MTkKUldRWlpIcU1UTUlkYmFIbVh6akF1VGFIYk93MFVDZEsyVTJGbzVad1N1MVRvQmh5ckI4aWs0MzMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDNjE2NjI5ODNCRjI4REMKUldUY0tMK0RLV1poUEZxSnB6WEJETlJBVVZyeEtVTWFzbFRtNGMyQ3JBRXRGcU4yMUlhZG4zdnMK",
       "endpoints": [
-        "https://github.com/LeoMartinDev/trame/releases/latest/download/latest.json"
+        "https://github.com/LeoMartinDev/diavola/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

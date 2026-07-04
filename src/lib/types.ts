@@ -47,8 +47,6 @@ export type DiavolaConfig = {
   processes: Record<string, ProcessConfig>;
 };
 
-export type DevappConfig = DiavolaConfig;
-
 export type ProcessStatus =
   | "pending"
   | "blocked"
@@ -141,7 +139,7 @@ export type TerminalOutputPayload = {
 export type ProjectConfigDocument = {
   project: ProjectRecord;
   yaml: string;
-  config: DevappConfig;
+  config: DiavolaConfig;
 };
 
 export type SessionStatusEvent = {

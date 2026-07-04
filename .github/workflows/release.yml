@@ -11,8 +11,12 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: denoland/setup-deno@v2
         with:
@@ -34,6 +38,13 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
       - run: cargo test
         working-directory: src-tauri
+
+      - name: Compute version
+        id: version
+        run: |
+          VERSION=$(deno run --allow-run=git scripts/ci_version.ts --dry-run)
+          APP_VERSION=$(echo "$VERSION" | grep "^APP_VERSION=" | cut -d= -f2)
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
   release:
     needs: check
@@ -122,36 +133,22 @@ jobs:
           gh release upload "$RELEASE_TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
 
   npm-publish:
-    needs: release
+    needs: [release, check]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Compute version
-        id: version
-        run: |
-          VERSION=$(deno run --allow-run=git scripts/ci_version.ts --dry-run)
-          APP_VERSION=$(echo "$VERSION" | grep "^APP_VERSION=" | cut -d= -f2)
-          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Set version in package.json
-        run: npm version "${{ steps.version.outputs.APP_VERSION }}" --no-git-tag-version --allow-same-version
+        run: npm version "${{ needs.check.outputs.app_version }}" --no-git-tag-version --allow-same-version
 
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

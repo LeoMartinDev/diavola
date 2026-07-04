@@ -1,7 +1,6 @@
 import type {
   CommandReadyConfig,
   DependencyCondition,
-  DevappConfig,
   DiavolaConfig,
   ProcessConfig,
   ProcessKind,
@@ -202,7 +201,7 @@ function optionalPollFields<T extends Extract<ReadyConfig, { intervalMs?: number
   ) as T;
 }
 
-export function serializeConfig(config: DevappConfig) {
+export function serializeConfig(config: DiavolaConfig) {
   const lines: string[] = [];
   const envEntries = Object.entries(config.env ?? {});
   if (envEntries.length > 0) {

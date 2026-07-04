@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 const { spawn } = require("child_process");
-const { createWriteStream, mkdirSync, chmodSync, existsSync, rmSync } = require("fs");
+const {
+  createWriteStream,
+  mkdirSync,
+  chmodSync,
+  existsSync,
+  rmSync,
+} = require("fs");
 const { join, dirname } = require("path");
 const { createGunzip } = require("zlib");
 const { pipeline } = require("stream");
@@ -12,7 +18,7 @@ const http = require("http");
 
 const streamPipeline = promisify(pipeline);
 
-const REPO = "LeoMartinDev/trame";
+const REPO = "LeoMartinDev/diavola";
 const BIN_NAME = process.platform === "win32" ? "diavola.exe" : "diavola";
 
 function getPlatform() {
@@ -49,9 +55,12 @@ function getBinaryPath(installDir, platform) {
 }
 
 async function getLatestVersion() {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-    headers: { "User-Agent": "diavola-npm-installer" },
-  });
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO}/releases/latest`,
+    {
+      headers: { "User-Agent": "diavola-npm-installer" },
+    },
+  );
   if (!res.ok) throw new Error(`Failed to fetch latest release: ${res.status}`);
   const data = await res.json();
   return { version: data.tag_name, assets: data.assets };
@@ -68,7 +77,7 @@ async function downloadAndRun() {
     release = await getLatestVersion();
   } catch (e) {
     console.error(
-      `Unable to find latest Diavola release. Is the repo ${REPO} public?\n${e.message}`
+      `Unable to find latest Diavola release. Is the repo ${REPO} public?\n${e.message}`,
     );
     process.exit(1);
   }
@@ -77,7 +86,7 @@ async function downloadAndRun() {
   if (!asset) {
     console.error(
       `No binary found for ${platform} in release ${release.version}. ` +
-        `Expected asset: ${assetName}`
+        `Expected asset: ${assetName}`,
     );
     process.exit(1);
   }
@@ -132,14 +141,18 @@ function downloadFile(url, dest) {
     const file = createWriteStream(dest);
     const proto = url.startsWith("https") ? https : http;
     proto
-      .get(url, { headers: { "User-Agent": "diavola-npm-installer" } }, (res) => {
-        if (res.statusCode >= 400) {
-          reject(new Error(`Download failed: ${res.statusCode}`));
-          return;
-        }
-        res.pipe(file);
-        file.on("finish", () => file.close(resolve));
-      })
+      .get(
+        url,
+        { headers: { "User-Agent": "diavola-npm-installer" } },
+        (res) => {
+          if (res.statusCode >= 400) {
+            reject(new Error(`Download failed: ${res.statusCode}`));
+            return;
+          }
+          res.pipe(file);
+          file.on("finish", () => file.close(resolve));
+        },
+      )
       .on("error", reject);
   });
 }
@@ -148,7 +161,7 @@ function gunzip(src, dest) {
   return streamPipeline(
     require("fs").createReadStream(src),
     createGunzip(),
-    createWriteStream(dest)
+    createWriteStream(dest),
   ).then(() => rmSync(src));
 }
 

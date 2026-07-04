@@ -16,7 +16,7 @@ const project: ProjectRecord = {
   name: "Diavola",
   baseDir: "/home/leo/diavola",
   configSource: "projectFile",
-  configPath: "/home/leo/dev/devapp/diavola.yml",
+  configPath: "/home/leo/dev/diavola/diavola.yml",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
