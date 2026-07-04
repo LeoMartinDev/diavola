@@ -1,4 +1,4 @@
-name: Release
+name: CI & Release
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app_version: ${{ steps.version.outputs.app_version }}
+      is_tag: ${{ steps.tag.outputs.is_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,16 +40,24 @@ jobs:
       - run: cargo test
         working-directory: src-tauri
 
+      - name: Check if tag push
+        id: tag
+        run: |
+          echo "is_tag=${{ startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
+
       - name: Compute version
         id: version
         run: |
-          VERSION=$(deno run --allow-read scripts/ci_version.ts --dry-run)
-          APP_VERSION=$(echo "$VERSION" | grep "^APP_VERSION=" | cut -d= -f2)
-          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "${{ steps.tag.outputs.is_tag }}" == "true" ]]; then
+            echo "app_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=$(deno run --allow-read scripts/ci_version.ts --dry-run)
+            echo "app_version=$(echo "$VERSION" | grep '^APP_VERSION=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          fi
 
   release:
     needs: check
-    if: github.event_name == 'workflow_dispatch'
+    if: needs.check.outputs.is_tag == 'true' || github.event_name == 'workflow_dispatch'
     environment: Deploy
     permissions:
       contents: write
@@ -85,8 +94,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
-      - name: Compute version
-        run: deno run --allow-read --allow-write --allow-env scripts/ci_version.ts
+      - name: Compute version and patch files
+        run: |
+          VERSION="${{ needs.check.outputs.app_version }}"
+          jq ".version = \"$VERSION\"" package.json > /tmp/pkg.json && mv /tmp/pkg.json package.json
+          deno run --allow-read --allow-write --allow-env scripts/ci_version.ts
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -136,7 +148,7 @@ jobs:
 
   npm-publish:
     needs: [release, check]
-    if: github.event_name == 'workflow_dispatch'
+    if: needs.check.outputs.is_tag == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
