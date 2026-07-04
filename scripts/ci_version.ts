@@ -1,26 +1,18 @@
-import { computeVersion } from "./version_calc.ts";
+import { formatVersion } from "./version_calc.ts";
 
-const FILES = {
-  tauriConf: "src-tauri/tauri.conf.json",
-  packageJson: "package.json",
-  cargoToml: "src-tauri/Cargo.toml",
-};
+const TAURI_CONF = "src-tauri/tauri.conf.json";
+const CARGO_TOML = "src-tauri/Cargo.toml";
+const PACKAGE_JSON = "package.json";
 
 const dryRun = Deno.args.includes("--dry-run");
 
-async function git(args: string[]): Promise<string> {
-  const cmd = new Deno.Command("git", {
-    args,
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const { code, stdout, stderr } = await cmd.output();
-  const out = new TextDecoder().decode(stdout);
-  const err = new TextDecoder().decode(stderr);
-  if (code !== 0) {
-    throw new Error(`git ${args.join(" ")} failed (${code}): ${err || out}`);
+async function readPackageVersion(): Promise<string> {
+  const text = await Deno.readTextFile(PACKAGE_JSON);
+  const pkg = JSON.parse(text);
+  if (!pkg.version || typeof pkg.version !== "string") {
+    throw new Error("package.json does not contain a valid version field");
   }
-  return out.trim();
+  return pkg.version;
 }
 
 async function patchJson(path: string, version: string): Promise<void> {
@@ -32,7 +24,6 @@ async function patchJson(path: string, version: string): Promise<void> {
 
 async function patchCargoVersion(path: string, version: string): Promise<void> {
   let text = await Deno.readTextFile(path);
-  // Scope to the [package] table so dependency `version =` lines are never touched.
   const updated = text.replace(
     /^(\[package\][\s\S]*?\nversion\s*=\s*")([^"]*)(")/m,
     `$1${version}$3`,
@@ -46,38 +37,34 @@ async function patchCargoVersion(path: string, version: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await git(["fetch", "--tags", "--force"]);
-  const tagList = await git(["tag", "-l", "v*"]);
-  const existingTags = tagList ? tagList.split("\n").filter(Boolean) : [];
-
-  const { appVersion, releaseVersion, releaseTag } = computeVersion(new Date(), existingTags);
+  const version = await readPackageVersion();
+  const info = formatVersion(version);
 
   if (dryRun) {
-    console.log(`APP_VERSION=${appVersion}`);
-    console.log(`RELEASE_VERSION=${releaseVersion}`);
-    console.log(`RELEASE_TAG=${releaseTag}`);
+    console.log(`APP_VERSION=${info.appVersion}`);
+    console.log(`RELEASE_VERSION=${info.releaseVersion}`);
+    console.log(`RELEASE_TAG=${info.releaseTag}`);
     console.log(`(dry-run: no files patched, no GITHUB_ENV written)`);
     return;
   }
 
-  await patchJson(FILES.tauriConf, appVersion);
-  await patchJson(FILES.packageJson, appVersion);
-  await patchCargoVersion(FILES.cargoToml, appVersion);
+  await patchJson(TAURI_CONF, info.appVersion);
+  await patchCargoVersion(CARGO_TOML, info.appVersion);
 
   const ghEnv = Deno.env.get("GITHUB_ENV");
   if (ghEnv) {
     const line = [
-      `APP_VERSION=${appVersion}`,
-      `RELEASE_VERSION=${releaseVersion}`,
-      `RELEASE_TAG=${releaseTag}`,
+      `APP_VERSION=${info.appVersion}`,
+      `RELEASE_VERSION=${info.releaseVersion}`,
+      `RELEASE_TAG=${info.releaseTag}`,
       "",
     ].join("\n");
     await Deno.writeTextFile(ghEnv, line, { append: true });
   }
 
-  console.log(`APP_VERSION=${appVersion}`);
-  console.log(`RELEASE_VERSION=${releaseVersion}`);
-  console.log(`RELEASE_TAG=${releaseTag}`);
+  console.log(`APP_VERSION=${info.appVersion}`);
+  console.log(`RELEASE_VERSION=${info.releaseVersion}`);
+  console.log(`RELEASE_TAG=${info.releaseTag}`);
 }
 
 main();

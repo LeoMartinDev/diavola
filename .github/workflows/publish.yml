@@ -27,7 +27,7 @@ jobs:
       - name: Compute version
         id: version
         run: |
-          VERSION=$(deno run --allow-run=git scripts/ci_version.ts --dry-run)
+          VERSION=$(deno run --allow-read scripts/ci_version.ts --dry-run)
           APP_VERSION=$(echo "$VERSION" | grep "^APP_VERSION=" | cut -d= -f2)
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
