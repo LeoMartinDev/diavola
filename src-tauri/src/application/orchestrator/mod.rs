@@ -150,23 +150,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        let stop_grace = {
-            let state = self.inner.lock().await;
-            state
-                .sessions
-                .get(window_key)
-                .and_then(|active| {
-                    active.processes.get(&*process_name).map(|process| {
-                        lifecycle::resolve_stop_timeout(
-                            process.config.stop_timeout_ms,
-                            active.loaded_config.config.stop_timeout_ms,
-                        )
-                    })
-                })
-                .unwrap_or_else(|| lifecycle::resolve_stop_timeout(None, None))
-        };
-
-        let (kill_tx, done_rx) = {
+        let (stop_grace, kill_tx, done_rx) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -180,6 +164,10 @@ impl ProcessOrchestrator {
                     crate::error::ErrorCode::ProcessNotFound,
                 )
             })?;
+            let stop_grace = lifecycle::resolve_stop_timeout(
+                process.config.stop_timeout_ms,
+                active.loaded_config.config.stop_timeout_ms,
+            );
             if matches!(process.config.kind, ProcessKind::Task) {
                 return Err(AppError::runtime_with_code(
                     "cannot stop a task process",
@@ -193,7 +181,7 @@ impl ProcessOrchestrator {
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
             );
-            (kill_tx, notify_rx)
+            (stop_grace, kill_tx, notify_rx)
         };
 
         if let Some(kill_tx) = kill_tx {
