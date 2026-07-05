@@ -77,11 +77,11 @@
   />
 
   <TextField
-    label="Stop timeout (ms)"
+    label="Grace period (ms)"
     density="compact"
     placeholder="10000"
-    error={processIssue(process, "stopTimeoutMs")}
-    bind:value={process.stopTimeoutMs}
-    onblur={() => onFieldBlur?.(`process.${process.id}.stopTimeoutMs`)}
+    error={processIssue(process, "gracePeriodMs")}
+    bind:value={process.gracePeriodMs}
+    onblur={() => onFieldBlur?.(`process.${process.id}.gracePeriodMs`)}
   />
 </section>

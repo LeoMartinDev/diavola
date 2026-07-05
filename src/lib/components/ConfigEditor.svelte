@@ -125,9 +125,9 @@
             <ConfigGeneralSection
               {project}
               projectSourceLabel={ctx.projectSourceLabel}
-              globalStopTimeoutMs={ctx.globalStopTimeoutMs}
-              globalStopTimeoutError={ctx.globalStopTimeoutError()}
-              onGlobalStopTimeoutChange={ctx.onGlobalStopTimeoutChange}
+              globalGracePeriodMs={ctx.globalGracePeriodMs}
+              globalGracePeriodError={ctx.globalGracePeriodError()}
+              onGlobalGracePeriodChange={ctx.onGlobalGracePeriodChange}
             />
           {:else if ctx.activeSection === "settings-environment"}
             <ConfigEnvironmentSection

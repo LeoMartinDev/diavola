@@ -105,10 +105,10 @@ pub fn find_config_in_cwd_or_parents() -> Option<PathBuf> {
     find_config_in_dir_or_parents(&current_dir)
 }
 
-fn validate_stop_timeout(ms: u64) -> Result<(), AppError> {
+fn validate_grace_period(ms: u64) -> Result<(), AppError> {
     if ms < 1000 {
         return Err(AppError::validation_with_code(
-            format!("stop_timeout_ms must be at least 1000 ms, got {ms}"),
+            format!("grace_period_ms must be at least 1000 ms, got {ms}"),
             crate::error::ErrorCode::ConfigValidationFailed,
         ));
     }
@@ -123,8 +123,8 @@ pub fn validate_graph(config: &DiavolaConfig) -> Result<(), AppError> {
         ));
     }
 
-    if let Some(ms) = config.stop_timeout_ms {
-        validate_stop_timeout(ms)?;
+    if let Some(ms) = config.grace_period_ms {
+        validate_grace_period(ms)?;
     }
 
     for (name, process) in &config.processes {
@@ -140,8 +140,8 @@ pub fn validate_graph(config: &DiavolaConfig) -> Result<(), AppError> {
                 crate::error::ErrorCode::ConfigValidationFailed,
             ));
         }
-        if let Some(ms) = process.stop_timeout_ms {
-            validate_stop_timeout(ms)?;
+        if let Some(ms) = process.grace_period_ms {
+            validate_grace_period(ms)?;
         }
         if let Some(ready) = &process.ready {
             validate_ready_config(name, ready)?;
@@ -422,53 +422,53 @@ processes:
     }
 
     #[test]
-    fn rejects_global_stop_timeout_below_minimum() {
+    fn rejects_global_grace_period_below_minimum() {
         let error = parse(
             r#"
-stopTimeoutMs: 500
+gracePeriodMs: 500
 processes:
   web:
     kind: service
     cmd: deno task dev
 "#,
         )
-        .expect_err("sub-minimum global stop timeout should fail");
+        .expect_err("sub-minimum global grace period should fail");
 
         assert!(
-            error.to_string().contains("stop_timeout_ms"),
-            "error should mention stop_timeout_ms: {error}"
+            error.to_string().contains("grace_period_ms"),
+            "error should mention grace_period_ms: {error}"
         );
     }
 
     #[test]
-    fn rejects_per_process_stop_timeout_below_minimum() {
+    fn rejects_per_process_grace_period_below_minimum() {
         let error = parse(
             r#"
 processes:
   web:
     kind: service
     cmd: deno task dev
-    stopTimeoutMs: 0
+    gracePeriodMs: 0
 "#,
         )
-        .expect_err("sub-minimum per-process stop timeout should fail");
+        .expect_err("sub-minimum per-process grace period should fail");
 
-        assert!(error.to_string().contains("stop_timeout_ms"));
+        assert!(error.to_string().contains("grace_period_ms"));
     }
 
     #[test]
-    fn accepts_valid_global_and_per_process_stop_timeout() {
+    fn accepts_valid_global_and_per_process_grace_period() {
         parse(
             r#"
-stopTimeoutMs: 15000
+gracePeriodMs: 15000
 processes:
   web:
     kind: service
     cmd: deno task dev
-    stopTimeoutMs: 30000
+    gracePeriodMs: 30000
 "#,
         )
-        .expect("valid stop timeouts should parse");
+        .expect("valid grace periods should parse");
     }
 
     #[test]

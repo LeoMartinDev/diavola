@@ -39,9 +39,9 @@ export function validateProjectDetails(input: ProjectDetailsInput): ValidationRe
 
 export function validateConfigForm(formState: ConfigFormState): ValidationResult {
   const issues: ValidationIssue[] = [];
-  validateStopTimeoutMs(
-    formState.globalStopTimeoutMs,
-    "global.stopTimeoutMs",
+  validateGracePeriodMs(
+    formState.globalGracePeriodMs,
+    "global.gracePeriodMs",
     issues,
   );
   validateProcesses(formState.processes, issues);
@@ -95,9 +95,9 @@ function validateProcesses(processes: ProcessForm[], issues: ValidationIssue[]) 
     validateProcessEnvRows(process.id, process.envRows, issues);
     validateDependencies(process, names, processes, issues);
     validateReadyConfig(process, issues);
-    validateStopTimeoutMs(
-      process.stopTimeoutMs,
-      `process.${process.id}.stopTimeoutMs`,
+    validateGracePeriodMs(
+      process.gracePeriodMs,
+      `process.${process.id}.gracePeriodMs`,
       issues,
     );
   }
@@ -203,7 +203,7 @@ function validateNonNegativeNumber(
   }
 }
 
-function validateStopTimeoutMs(
+function validateGracePeriodMs(
   value: number | string | null,
   key: string,
   issues: ValidationIssue[],
@@ -213,7 +213,7 @@ function validateStopTimeoutMs(
   }
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue) || numericValue < 1000) {
-    issues.push({ key, message: "Stop timeout must be at least 1000 ms." });
+    issues.push({ key, message: "Grace period must be at least 1000 ms." });
   }
 }
 

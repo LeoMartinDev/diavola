@@ -29,7 +29,7 @@ export function useConfigEditor(
 
   const s = $state({
     globalEnvRows: [] as EnvRow[],
-    globalStopTimeoutMs: null as number | string | null,
+    globalGracePeriodMs: null as number | string | null,
     processes: [] as ProcessFormState[],
     selectedProcessId: null as string | null,
     loadedProjectId: null as string | null,
@@ -49,7 +49,7 @@ export function useConfigEditor(
       return s.processes.find((p) => p.id === s.selectedProcessId) ?? s.processes[0] ?? null;
     },
     get formState(): ConfigFormState {
-      return { globalEnvRows: s.globalEnvRows, globalStopTimeoutMs: s.globalStopTimeoutMs, processes: s.processes };
+      return { globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, processes: s.processes };
     },
     get formIssueCount(): number {
       return s.validationIssues.length;
@@ -78,13 +78,13 @@ export function useConfigEditor(
 
   function currentYaml() {
     return serializeConfig(
-      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalStopTimeoutMs: s.globalStopTimeoutMs, processes: s.processes }),
+      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, processes: s.processes }),
     );
   }
 
   function resetEmpty() {
     s.globalEnvRows = [];
-    s.globalStopTimeoutMs = null;
+    s.globalGracePeriodMs = null;
     s.processes = [newProcess("api")];
     s.selectedProcessId = s.processes[0].id;
     s.processesViewMode = "list";
@@ -92,7 +92,7 @@ export function useConfigEditor(
 
   function resetUnloaded() {
     s.globalEnvRows = [];
-    s.globalStopTimeoutMs = null;
+    s.globalGracePeriodMs = null;
     s.processes = [];
     s.selectedProcessId = null;
     s.processesViewMode = "list";
@@ -122,7 +122,7 @@ export function useConfigEditor(
         return;
       }
       s.suppressDirty = true;
-      s.globalStopTimeoutMs = config.stopTimeoutMs ?? null;
+      s.globalGracePeriodMs = config.gracePeriodMs ?? null;
       s.globalEnvRows = Object.entries(config.env ?? {}).map(([key, value]) => ({
         id: nextId("env"),
         key,
@@ -311,12 +311,12 @@ export function useConfigEditor(
 
   function markTouched(key: string) { s.touchedFields.add(key); }
 
-  function globalStopTimeoutError() {
-    return issueFor("global.stopTimeoutMs");
+  function globalGracePeriodError() {
+    return issueFor("global.gracePeriodMs");
   }
 
-  function onGlobalStopTimeoutChange(value: number | string | null) {
-    s.globalStopTimeoutMs = value;
+  function onGlobalGracePeriodChange(value: number | string | null) {
+    s.globalGracePeriodMs = value;
   }
 
   return Object.assign(s, {
@@ -351,8 +351,8 @@ export function useConfigEditor(
     selectProcessByIndex,
     handleProcessOptionKeydown,
     markTouched,
-    globalStopTimeoutError,
-    onGlobalStopTimeoutChange,
+    globalGracePeriodError,
+    onGlobalGracePeriodChange,
     get debounceTimer(): ReturnType<typeof setTimeout> | null { return debounceTimer; },
     set debounceTimer(v: ReturnType<typeof setTimeout> | null) { debounceTimer = v; },
   });

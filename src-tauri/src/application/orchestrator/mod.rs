@@ -152,7 +152,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        let (stop_grace, kill_tx, done_rx) = {
+        let (grace_period, kill_tx, done_rx) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -166,9 +166,9 @@ impl ProcessOrchestrator {
                     crate::error::ErrorCode::ProcessNotFound,
                 )
             })?;
-            let stop_grace = lifecycle::resolve_stop_timeout(
-                process.config.stop_timeout_ms,
-                active.loaded_config.config.stop_timeout_ms,
+            let grace_period = lifecycle::resolve_grace_period(
+                process.config.grace_period_ms,
+                active.loaded_config.config.grace_period_ms,
             );
             if matches!(process.config.kind, ProcessKind::Task) {
                 return Err(AppError::runtime_with_code(
@@ -183,14 +183,14 @@ impl ProcessOrchestrator {
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
             );
-            (stop_grace, kill_tx, notify_rx)
+            (grace_period, kill_tx, notify_rx)
         };
 
         if let Some(kill_tx) = kill_tx {
             let _ = kill_tx.send(()).await;
         }
 
-        let _ = tokio::time::timeout(stop_grace + Duration::from_secs(5), done_rx).await;
+        let _ = tokio::time::timeout(grace_period + Duration::from_secs(5), done_rx).await;
 
         self.emit_snapshot(&app_handle, window_key).await?;
         Ok(self.snapshot(window_key).await?)
@@ -264,7 +264,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<(), AppError> {
-        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_stop_timeout_ms) = {
+        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_grace_period_ms) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -284,7 +284,7 @@ impl ProcessOrchestrator {
             }
             let env =
                 lifecycle::build_process_env(&active.loaded_config.config.env, &process.config.env);
-            let global_stop_timeout_ms = active.loaded_config.config.stop_timeout_ms;
+            let global_grace_period_ms = active.loaded_config.config.grace_period_ms;
             process.snapshot.status = ProcessStatus::Starting;
             process.snapshot.started_at = Some(Utc::now());
             process.snapshot.exited_at = None;
@@ -301,7 +301,7 @@ impl ProcessOrchestrator {
                 process.config.clone(),
                 process.snapshot.runtime_id.clone(),
                 process.log_tx.clone(),
-                global_stop_timeout_ms,
+                global_grace_period_ms,
             )
         };
 
@@ -464,9 +464,9 @@ impl ProcessOrchestrator {
         let exit_window_key = window_key.to_string();
         #[cfg(unix)]
         let wait_pid = child_pid;
-        let stop_grace = lifecycle::resolve_stop_timeout(
-            config.stop_timeout_ms,
-            global_stop_timeout_ms,
+        let grace_period = lifecycle::resolve_grace_period(
+            config.grace_period_ms,
+            global_grace_period_ms,
         );
         #[cfg(windows)]
         let spawned_job = {
@@ -487,7 +487,7 @@ impl ProcessOrchestrator {
                         result = child.wait() => result,
                         _ = kill_rx.recv() => {
                             // Graceful signal already sent by begin_process_termination.
-                            match tokio::time::timeout(stop_grace, child.wait()).await {
+                            match tokio::time::timeout(grace_period, child.wait()).await {
                                 Ok(result) => result,
                                 Err(_) => {
                                     #[cfg(unix)]
@@ -863,7 +863,7 @@ mod tests {
             config: crate::domain::config::DiavolaConfig {
                 env: Default::default(),
                 processes: Default::default(),
-                stop_timeout_ms: None,
+                grace_period_ms: None,
             },
             raw_yaml: String::new(),
         }

@@ -80,7 +80,7 @@ mod tests {
                 env: IndexMap::new(),
                 depends_on: IndexMap::new(),
                 ready: None,
-                stop_timeout_ms: None,
+                grace_period_ms: None,
             },
             snapshot: ProcessSnapshot {
                 runtime_id: ProcessRuntimeId::new(),
@@ -118,7 +118,7 @@ mod tests {
             env: IndexMap::new(),
             depends_on,
             ready: None,
-            stop_timeout_ms: None,
+            grace_period_ms: None,
         };
 
         assert!(dependencies_satisfied(&processes, &config));
@@ -146,7 +146,7 @@ mod tests {
             env: IndexMap::new(),
             depends_on,
             ready: None,
-            stop_timeout_ms: None,
+            grace_period_ms: None,
         };
 
         assert!(!dependencies_satisfied(&processes, &config));

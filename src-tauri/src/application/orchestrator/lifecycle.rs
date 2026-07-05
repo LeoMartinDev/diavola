@@ -9,13 +9,13 @@ use crate::domain::{
 
 use super::ManagedProcess;
 
-pub(super) const DEFAULT_STOP_TIMEOUT_MS: u64 = 10_000;
+pub(super) const DEFAULT_GRACE_PERIOD_MS: u64 = 10_000;
 
-pub(super) fn resolve_stop_timeout(
+pub(super) fn resolve_grace_period(
     process: Option<u64>,
     global: Option<u64>,
 ) -> std::time::Duration {
-    std::time::Duration::from_millis(process.or(global).unwrap_or(DEFAULT_STOP_TIMEOUT_MS))
+    std::time::Duration::from_millis(process.or(global).unwrap_or(DEFAULT_GRACE_PERIOD_MS))
 }
 
 pub(super) fn build_process_env(
@@ -113,7 +113,7 @@ mod tests {
                 env: IndexMap::new(),
                 depends_on: IndexMap::new(),
                 ready: None,
-                stop_timeout_ms: None,
+                grace_period_ms: None,
             },
             snapshot: ProcessSnapshot {
                 runtime_id: ProcessRuntimeId::new(),
@@ -276,25 +276,25 @@ mod tests {
     }
 
     #[test]
-    fn resolve_stop_timeout_uses_default_when_unset() {
+    fn resolve_grace_period_uses_default_when_unset() {
         assert_eq!(
-            resolve_stop_timeout(None, None),
-            std::time::Duration::from_millis(DEFAULT_STOP_TIMEOUT_MS)
+            resolve_grace_period(None, None),
+            std::time::Duration::from_millis(DEFAULT_GRACE_PERIOD_MS)
         );
     }
 
     #[test]
-    fn resolve_stop_timeout_global_wins_over_default() {
+    fn resolve_grace_period_global_wins_over_default() {
         assert_eq!(
-            resolve_stop_timeout(None, Some(20_000)),
+            resolve_grace_period(None, Some(20_000)),
             std::time::Duration::from_secs(20)
         );
     }
 
     #[test]
-    fn resolve_stop_timeout_process_wins_over_global() {
+    fn resolve_grace_period_process_wins_over_global() {
         assert_eq!(
-            resolve_stop_timeout(Some(7_000), Some(20_000)),
+            resolve_grace_period(Some(7_000), Some(20_000)),
             std::time::Duration::from_secs(7)
         );
     }

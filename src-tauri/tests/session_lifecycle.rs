@@ -168,7 +168,7 @@ processes:
   polite:
     kind: service
     cmd: sh -c "trap 'exit 0' TERM; sleep 60"
-    stopTimeoutMs: 5000
+    gracePeriodMs: 5000
     ready:
       type: delay
       durationMs: 50
@@ -240,7 +240,7 @@ processes:
   stubborn:
     kind: service
     cmd: sh -c "trap '' TERM; sleep 60"
-    stopTimeoutMs: 1000
+    gracePeriodMs: 1000
     ready:
       type: delay
       durationMs: 50
@@ -317,7 +317,7 @@ processes:
   holder:
     kind: service
     cmd: cmd /C "node -e \"require('net').createServer().listen({port})\""
-    stopTimeoutMs: 2000
+    gracePeriodMs: 2000
     ready:
       type: delay
       durationMs: 300

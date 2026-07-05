@@ -5,17 +5,17 @@
   type Props = {
     project: ProjectRecord | null;
     projectSourceLabel: string;
-    globalStopTimeoutMs: number | string | null;
-    globalStopTimeoutError: string | null;
-    onGlobalStopTimeoutChange: (value: number | string | null) => void;
+    globalGracePeriodMs: number | string | null;
+    globalGracePeriodError: string | null;
+    onGlobalGracePeriodChange: (value: number | string | null) => void;
   };
 
   let {
     project,
     projectSourceLabel,
-    globalStopTimeoutMs,
-    globalStopTimeoutError,
-    onGlobalStopTimeoutChange,
+    globalGracePeriodMs,
+    globalGracePeriodError,
+    onGlobalGracePeriodChange,
   }: Props = $props();
 </script>
 
@@ -54,11 +54,11 @@
   </div>
 
   <TextField
-    label="Default stop timeout (ms)"
+    label="Default grace period (ms)"
     density="compact"
     placeholder="10000"
-    error={globalStopTimeoutError}
-    value={globalStopTimeoutMs ?? ""}
-    oninput={(e) => onGlobalStopTimeoutChange((e.currentTarget as HTMLInputElement).value)}
+    error={globalGracePeriodError}
+    value={globalGracePeriodMs ?? ""}
+    oninput={(e) => onGlobalGracePeriodChange((e.currentTarget as HTMLInputElement).value)}
   />
 </section>

@@ -20,7 +20,7 @@ const process: ProcessForm = {
   commandCmd: "",
   intervalMs: null,
   timeoutMs: 60000,
-  stopTimeoutMs: null,
+  gracePeriodMs: null,
 };
 
 describe("DependencyEditor", () => {

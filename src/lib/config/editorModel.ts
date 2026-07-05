@@ -35,12 +35,12 @@ export type ProcessForm = {
   commandCmd: string;
   intervalMs: number | string | null;
   timeoutMs: number | string | null;
-  stopTimeoutMs: number | string | null;
+  gracePeriodMs: number | string | null;
 };
 
 export type ConfigFormState = {
   globalEnvRows: EnvRow[];
-  globalStopTimeoutMs: number | string | null;
+  globalGracePeriodMs: number | string | null;
   processes: ProcessForm[];
 };
 
@@ -67,7 +67,7 @@ export function createProcess(name = "api", nextId: IdFactory = defaultNextId): 
     commandCmd: "",
     intervalMs: null,
     timeoutMs: 60000,
-    stopTimeoutMs: null,
+    gracePeriodMs: null,
   };
 }
 
@@ -105,7 +105,7 @@ export function toProcessForm(
       ready?.type === "http" || ready?.type === "log" || ready?.type === "command"
         ? (ready.timeoutMs ?? null)
         : null,
-    stopTimeoutMs: config.stopTimeoutMs ?? null,
+    gracePeriodMs: config.gracePeriodMs ?? null,
   };
 }
 
@@ -118,13 +118,13 @@ export function buildConfig(form: ConfigFormState): DiavolaConfig {
       .map((row) => [row.key.trim(), row.value] as const)
       .filter(([key]) => key.length > 0),
   );
-  const globalStopTimeoutMs =
-    form.globalStopTimeoutMs !== null && form.globalStopTimeoutMs !== ""
-      ? Number(form.globalStopTimeoutMs)
+  const globalGracePeriodMs =
+    form.globalGracePeriodMs !== null && form.globalGracePeriodMs !== ""
+      ? Number(form.globalGracePeriodMs)
       : undefined;
   return {
     env: Object.keys(globalEnv).length > 0 ? globalEnv : undefined,
-    stopTimeoutMs: globalStopTimeoutMs,
+    gracePeriodMs: globalGracePeriodMs,
     processes: Object.fromEntries(processEntries),
   };
 }
@@ -135,9 +135,9 @@ export function buildProcessConfig(process: ProcessForm): ProcessConfig {
       .map((row) => [row.key.trim(), row.value] as const)
       .filter(([key]) => key.length > 0),
   );
-  const stopTimeoutMs =
-    process.stopTimeoutMs !== null && process.stopTimeoutMs !== ""
-      ? Number(process.stopTimeoutMs)
+  const gracePeriodMs =
+    process.gracePeriodMs !== null && process.gracePeriodMs !== ""
+      ? Number(process.gracePeriodMs)
       : undefined;
   return {
     kind: process.kind,
@@ -149,7 +149,7 @@ export function buildProcessConfig(process: ProcessForm): ProcessConfig {
         .filter(([processName]) => processName.length > 0),
     ),
     ready: process.readyEnabled ? buildReadyConfig(process) : undefined,
-    stopTimeoutMs,
+    gracePeriodMs,
   };
 }
 
@@ -224,8 +224,8 @@ export function serializeConfig(config: DiavolaConfig) {
       lines.push(`  ${yamlKey(key)}: ${yamlScalar(value)}`);
     }
   }
-  if (config.stopTimeoutMs !== undefined && config.stopTimeoutMs !== null) {
-    lines.push(`stopTimeoutMs: ${config.stopTimeoutMs}`);
+  if (config.gracePeriodMs !== undefined && config.gracePeriodMs !== null) {
+    lines.push(`gracePeriodMs: ${config.gracePeriodMs}`);
   }
   lines.push("processes:");
   for (const [name, process] of Object.entries(config.processes)) {
@@ -250,8 +250,8 @@ export function serializeConfig(config: DiavolaConfig) {
         lines.push(`      ${yamlKey(dependencyName)}: ${condition}`);
       }
     }
-    if (process.stopTimeoutMs !== undefined && process.stopTimeoutMs !== null) {
-      lines.push(`    stopTimeoutMs: ${process.stopTimeoutMs}`);
+    if (process.gracePeriodMs !== undefined && process.gracePeriodMs !== null) {
+      lines.push(`    gracePeriodMs: ${process.gracePeriodMs}`);
     }
     if (process.ready) {
       lines.push("    ready:");
