@@ -824,6 +824,7 @@ mod tests {
             config: crate::domain::config::DiavolaConfig {
                 env: Default::default(),
                 processes: Default::default(),
+                stop_timeout_ms: None,
             },
             raw_yaml: String::new(),
         }

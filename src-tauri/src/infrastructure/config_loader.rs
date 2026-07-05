@@ -105,12 +105,26 @@ pub fn find_config_in_cwd_or_parents() -> Option<PathBuf> {
     find_config_in_dir_or_parents(&current_dir)
 }
 
+fn validate_stop_timeout(ms: u64) -> Result<(), AppError> {
+    if ms < 1000 {
+        return Err(AppError::validation_with_code(
+            format!("stop_timeout_ms must be at least 1000 ms, got {ms}"),
+            crate::error::ErrorCode::ConfigValidationFailed,
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_graph(config: &DiavolaConfig) -> Result<(), AppError> {
     if config.processes.is_empty() {
         return Err(AppError::validation_with_code(
             "configuration must declare at least one process",
             crate::error::ErrorCode::ConfigValidationFailed,
         ));
+    }
+
+    if let Some(ms) = config.stop_timeout_ms {
+        validate_stop_timeout(ms)?;
     }
 
     for (name, process) in &config.processes {
@@ -125,6 +139,9 @@ pub fn validate_graph(config: &DiavolaConfig) -> Result<(), AppError> {
                 format!("process `{name}` must declare a non-empty cmd"),
                 crate::error::ErrorCode::ConfigValidationFailed,
             ));
+        }
+        if let Some(ms) = process.stop_timeout_ms {
+            validate_stop_timeout(ms)?;
         }
         if let Some(ready) = &process.ready {
             validate_ready_config(name, ready)?;
@@ -402,6 +419,56 @@ processes:
         .expect_err("relative readiness URL should fail");
 
         assert!(error.to_string().contains("invalid http readiness URL"));
+    }
+
+    #[test]
+    fn rejects_global_stop_timeout_below_minimum() {
+        let error = parse(
+            r#"
+stopTimeoutMs: 500
+processes:
+  web:
+    kind: service
+    cmd: deno task dev
+"#,
+        )
+        .expect_err("sub-minimum global stop timeout should fail");
+
+        assert!(
+            error.to_string().contains("stop_timeout_ms"),
+            "error should mention stop_timeout_ms: {error}"
+        );
+    }
+
+    #[test]
+    fn rejects_per_process_stop_timeout_below_minimum() {
+        let error = parse(
+            r#"
+processes:
+  web:
+    kind: service
+    cmd: deno task dev
+    stopTimeoutMs: 0
+"#,
+        )
+        .expect_err("sub-minimum per-process stop timeout should fail");
+
+        assert!(error.to_string().contains("stop_timeout_ms"));
+    }
+
+    #[test]
+    fn accepts_valid_global_and_per_process_stop_timeout() {
+        parse(
+            r#"
+stopTimeoutMs: 15000
+processes:
+  web:
+    kind: service
+    cmd: deno task dev
+    stopTimeoutMs: 30000
+"#,
+        )
+        .expect("valid stop timeouts should parse");
     }
 
     #[test]

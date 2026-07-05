@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct DiavolaConfig {
     #[serde(default)]
     pub env: IndexMap<String, String>,
+    #[serde(default)]
+    pub stop_timeout_ms: Option<u64>,
     pub processes: IndexMap<String, ProcessConfig>,
 }
 
@@ -20,6 +22,8 @@ pub struct ProcessConfig {
     pub depends_on: IndexMap<String, DependencyCondition>,
     #[serde(default)]
     pub ready: Option<ReadyConfig>,
+    #[serde(default)]
+    pub stop_timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

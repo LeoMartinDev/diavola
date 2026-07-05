@@ -9,6 +9,15 @@ use crate::domain::{
 
 use super::ManagedProcess;
 
+pub(super) const DEFAULT_STOP_TIMEOUT_MS: u64 = 10_000;
+
+pub(super) fn resolve_stop_timeout(
+    process: Option<u64>,
+    global: Option<u64>,
+) -> std::time::Duration {
+    std::time::Duration::from_millis(process.or(global).unwrap_or(DEFAULT_STOP_TIMEOUT_MS))
+}
+
 pub(super) fn build_process_env(
     global_env: &IndexMap<String, String>,
     process_env: &IndexMap<String, String>,
@@ -97,6 +106,7 @@ mod tests {
                 env: IndexMap::new(),
                 depends_on: IndexMap::new(),
                 ready: None,
+                stop_timeout_ms: None,
             },
             snapshot: ProcessSnapshot {
                 runtime_id: ProcessRuntimeId::new(),
@@ -254,5 +264,29 @@ mod tests {
                 "status must be unchanged for {status:?}"
             );
         }
+    }
+
+    #[test]
+    fn resolve_stop_timeout_uses_default_when_unset() {
+        assert_eq!(
+            resolve_stop_timeout(None, None),
+            std::time::Duration::from_millis(DEFAULT_STOP_TIMEOUT_MS)
+        );
+    }
+
+    #[test]
+    fn resolve_stop_timeout_global_wins_over_default() {
+        assert_eq!(
+            resolve_stop_timeout(None, Some(20_000)),
+            std::time::Duration::from_secs(20)
+        );
+    }
+
+    #[test]
+    fn resolve_stop_timeout_process_wins_over_global() {
+        assert_eq!(
+            resolve_stop_timeout(Some(7_000), Some(20_000)),
+            std::time::Duration::from_secs(7)
+        );
     }
 }
