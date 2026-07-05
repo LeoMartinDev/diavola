@@ -1,4 +1,6 @@
 use std::{collections::HashMap, path::Path};
+#[cfg(windows)]
+use std::sync::Arc;
 
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -15,7 +17,7 @@ pub struct SpawnedProcess {
     pub stdout: ChildStdout,
     pub stderr: ChildStderr,
     #[cfg(windows)]
-    pub job: Option<crate::infrastructure::job::Job>,
+    pub job: Option<Arc<crate::infrastructure::job::Job>>,
 }
 
 pub fn spawn_process(
@@ -64,7 +66,7 @@ pub fn spawn_process(
                     ErrorCode::ProcessStartFailed,
                 )
             })?;
-        Some(job)
+        Some(Arc::new(job))
     };
 
     Ok(SpawnedProcess {

@@ -47,7 +47,7 @@ pub(super) struct ManagedProcess {
     generation: u64,
     stop_notify_tx: Option<oneshot::Sender<()>>,
     #[cfg(windows)]
-    pub(super) job: Option<crate::infrastructure::job::Job>,
+    pub(super) job: Option<Arc<crate::infrastructure::job::Job>>,
 }
 
 impl ProcessOrchestrator {
