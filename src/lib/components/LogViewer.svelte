@@ -3,7 +3,13 @@
   import type { ProcessLogPayload } from "$lib/types";
   import { isTypingTarget } from "$lib/utils/dom";
   import { computeVirtualScroll, isAtBottom } from "$lib/utils/virtualScroll";
-  import { escapeRegExp, highlightLine, countMatches, type TextSegment } from "$lib/utils/searchHighlight";
+  import {
+    buildMatcher,
+    highlightLine,
+    lineMatches,
+    type Matcher,
+    type SearchOptions,
+  } from "$lib/utils/searchHighlight";
   import Icon from "$lib/components/ui/Icon.svelte";
   import LogToolbar from "$lib/components/LogToolbar.svelte";
 
@@ -31,18 +37,86 @@
   let scrollTop = $state(0);
   let viewportHeight = $state(0);
 
+  const SEARCH_PREFS_KEY = "diavola.logSearch";
+
+  function loadSearchOptions(): SearchOptions {
+    try {
+      const raw = localStorage.getItem(SEARCH_PREFS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<SearchOptions>;
+        return { regex: !!parsed.regex, caseSensitive: !!parsed.caseSensitive };
+      }
+    } catch {
+      // ignore corrupt/unavailable storage
+    }
+    return { regex: false, caseSensitive: false };
+  }
+
+  let searchOptions = $state<SearchOptions>(loadSearchOptions());
+
+  $effect(() => {
+    try {
+      localStorage.setItem(
+        SEARCH_PREFS_KEY,
+        JSON.stringify({ regex: searchOptions.regex, caseSensitive: searchOptions.caseSensitive }),
+      );
+    } catch {
+      // ignore storage errors
+    }
+  });
+
   const visibleLogs = $derived(paused ? (pausedLogs ?? logs) : logs);
   const totalVisibleCount = $derived(visibleLogs.length);
 
-  let filteredLogs = $derived.by(() =>
-    visibleLogs.filter((entry) =>
-      query.trim().length === 0
-        ? true
-        : `${entry.stream} ${entry.line}`
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-    ),
+  const matcher = $derived(buildMatcher(query, searchOptions));
+  const regexError = $derived(matcher && "error" in matcher ? matcher.error : null);
+
+  let filteredLogs = $derived.by(() => {
+    const base = paused ? (pausedLogs ?? logs) : logs;
+    if (matcher === null || "error" in matcher) return base;
+    return base.filter((entry) => lineMatches(matcher, `${entry.stream} ${entry.line}`));
+  });
+
+  let activeMatchIndex = $state(0);
+
+  $effect(() => {
+    void `${query}|${searchOptions.regex}|${searchOptions.caseSensitive}`;
+    activeMatchIndex = 0;
+  });
+
+  $effect(() => {
+    const max = Math.max(0, filteredLogs.length - 1);
+    if (activeMatchIndex > max) activeMatchIndex = max;
+  });
+
+  const matcherActive = $derived(matcher !== null && "regex" in matcher);
+  const matchTotal = $derived(
+    matcher === null ? null : matcherActive ? filteredLogs.length : 0,
   );
+  const activeMatchNumber = $derived(activeMatchIndex + 1);
+
+  function scrollToActiveMatch() {
+    if (!viewport) return;
+    const top = activeMatchIndex * ROW_HEIGHT - (viewportHeight - ROW_HEIGHT) / 2;
+    const maxScroll = totalHeight - viewportHeight;
+    viewport.scrollTo({ top: Math.max(0, Math.min(top, maxScroll)) });
+  }
+
+  function goToMatch(next: number) {
+    const len = filteredLogs.length;
+    if (len === 0) return;
+    activeMatchIndex = (next % len + len) % len;
+    autoScroll = false;
+    scrollToActiveMatch();
+  }
+
+  function nextMatch() {
+    goToMatch(activeMatchIndex + 1);
+  }
+
+  function prevMatch() {
+    goToMatch(activeMatchIndex - 1);
+  }
 
   const virtualScroll = $derived(
     computeVirtualScroll(scrollTop, viewportHeight, filteredLogs.length),
@@ -105,6 +179,11 @@
       } else {
         (event.target as HTMLElement)?.blur();
       }
+    }
+    if (typing && event.key === "Enter" && matcherActive && filteredLogs.length > 0) {
+      event.preventDefault();
+      if (event.shiftKey) prevMatch();
+      else nextMatch();
     }
   }
 
@@ -184,15 +263,6 @@
     if (!sameAsNext) return "rounded-bl";
     return "";
   });
-
-  const matchCount = $derived(
-    query.trim().length === 0
-      ? null
-      : countMatches(
-          filteredLogs.map((log) => `${log.stream} ${log.line}`),
-          query,
-        ),
-  );
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -202,7 +272,13 @@
     bind:query
     bind:autoScroll
     bind:paused
-    {matchCount}
+    bind:regex={searchOptions.regex}
+    bind:caseSensitive={searchOptions.caseSensitive}
+    {matchTotal}
+    {activeMatchNumber}
+    {regexError}
+    onPrev={prevMatch}
+    onNext={nextMatch}
     onTogglePause={togglePaused}
     onClear={clearLogs}
   />
@@ -234,7 +310,7 @@
               entry.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(
               startIndex + index,
-            )}"
+            )} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
             <span class="shrink-0 select-none text-text-subtle">
               {new Date(entry.timestamp).toLocaleTimeString()}
@@ -245,9 +321,10 @@
               {#if entry.stream === "system" && /ready|listening/i.test(entry.line)}
                 <span class="mr-1">&#9679;</span>
               {/if}
-              {#each highlightLine(entry.line, query) as seg}
+              {#each highlightLine(entry.line, matcher) as seg}
                 {#if seg.match}
-                  <mark class="bg-warning/30 text-text rounded-[2px]"
+                  <mark
+                    class={`text-text rounded-[2px] ${startIndex + index === activeMatchIndex && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
                     >{seg.text}</mark
                   >
                 {:else}
