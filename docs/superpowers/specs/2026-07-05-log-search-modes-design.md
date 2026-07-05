@@ -70,8 +70,8 @@ On process switch, modes persist; `activeMatchIndex` resets to `0`.
 
 ### Logic layer — `src/lib/utils/searchHighlight.ts`
 
-Introduce a shared matcher builder so `highlightLine`, `countMatches`, and the
-new line-matching logic all derive from one source of truth.
+Introduce a shared matcher builder so `highlightLine`, the filter predicate,
+and the active-match logic all derive from one source of truth.
 
 ```ts
 export type SearchOptions = { regex: boolean; caseSensitive: boolean };
@@ -94,13 +94,13 @@ export function buildMatcher(query: string, options: SearchOptions): Matcher {
 }
 ```
 
-- `highlightLine(text, query, options)` — uses `buildMatcher`; returns
-  `[{ text, match: false }]` on error/empty (no highlight).
-- `countMatchingLines(lines, query, options)` — **new**, replaces
-  occurrence counting for the counter; returns the number of lines containing
-  at least one match.
-- `countMatches` — **removed** (only referenced in `LogViewer.svelte`, which
-  switches to `countMatchingLines`).
+- `highlightLine(text, matcher)` — now takes a `Matcher` (was a raw query
+  string); returns `[{ text, match: false }]` on error/empty (no highlight).
+- `lineMatches(matcher, text)` — **new**; returns `true` if `text` contains a
+  match (used as the filter predicate and for guard checks).
+- `countMatches` — **removed**. The match total is simply
+  `filteredLogs.length`, because filtering already keeps only matching lines
+  (see View layer) — there is no separate "matching indices" array to count.
 - `escapeRegExp` — unchanged.
 
 ### View layer — `src/lib/components/LogViewer.svelte`
@@ -113,26 +113,30 @@ New state and derived values:
 - `matcher = $derived(buildMatcher(query, searchOptions))`.
 - `regexError = $derived` — the error message when `matcher` is `{ error }`,
   else `null`.
-- `filteredLogs` — derived; keeps a line when `matcher` is `null` or when the
-  matcher's regex tests against `${entry.stream} ${entry.line}`.
-- `matchingLineIndices = $derived<number[]>` — indices into `filteredLogs`
-  whose line matches (same test used for filtering).
-- `activeMatchIndex = $state(0)` — position within
-  `matchingLineIndices`. Reset to `0` whenever `query` or `searchOptions`
-  change (via `$effect`); clamped to `matchingLineIndices.length - 1` when it
-  shrinks.
+- `filteredLogs` — derived; when `matcher` is `null` (query empty) or
+  `{ error }` it returns all `visibleLogs` unchanged; when `matcher` is
+  `{ regex }` it keeps only lines where `lineMatches(matcher, \`${entry.stream} ${entry.line}\`)`
+  is true.
+
+**Simplification:** because filtering already keeps only matching lines,
+*every* line in `filteredLogs` is a match by definition. There is no separate
+"matching indices" array. Navigation indexes directly into `filteredLogs`.
+
+- `activeMatchIndex = $state(0)` — position within `filteredLogs`. Reset to
+  `0` whenever `query` or `searchOptions` change (via `$effect`); clamped to
+  `filteredLogs.length - 1` when it shrinks.
 
 Counter values passed to the toolbar:
-- `matchTotal = matchingLineIndices.length` when query is non-empty, else
-  `null`.
+- `matchTotal = matcher is { regex } ? filteredLogs.length : null` (`null`
+  hides the nav group for empty/error states).
 - `activeMatchNumber = activeMatchIndex + 1` (1-based).
 
 Navigation actions:
 
 ```ts
 function goToMatch(next: number) {
-  if (matchingLineIndices.length === 0) return;
-  const len = matchingLineIndices.length;
+  if (filteredLogs.length === 0) return;
+  const len = filteredLogs.length;
   activeMatchIndex = (next % len + len) % len; // wrap-around
   autoScroll = false;
   scrollToActiveMatch();
@@ -146,9 +150,8 @@ Scroll-to-active reuses the existing virtualized layout:
 
 ```ts
 function scrollToActiveMatch() {
-  const target = matchingLineIndices[activeMatchIndex];
-  if (target == null || !viewport) return;
-  const top = target * ROW_HEIGHT - (viewportHeight - ROW_HEIGHT) / 2;
+  if (!viewport) return;
+  const top = activeMatchIndex * ROW_HEIGHT - (viewportHeight - ROW_HEIGHT) / 2;
   const maxScroll = totalHeight - viewportHeight;
   viewport.scrollTo({ top: Math.max(0, Math.min(top, maxScroll)) });
 }
@@ -167,8 +170,7 @@ Two visual tiers, both in `LogViewer.svelte`'s row template:
   `bg-surface-hover/60` for lateral visibility (in addition to the existing
   stream left-border).
 
-The active row is identified by
-`startIndex + index === matchingLineIndices[activeMatchIndex]`.
+The active row is identified by `startIndex + index === activeMatchIndex`.
 
 ### Toolbar — `src/lib/components/LogToolbar.svelte`
 
@@ -238,7 +240,7 @@ LogViewer
   query + searchOptions
     └─► buildMatcher ──► matcher
                             ├─► filteredLogs (filter)
-                            ├─► matchingLineIndices (which lines match)
+                            ├─► filteredLogs (only matching lines kept)
                             └─► highlightLine per row (render)
   activeMatchIndex ─► activeMatchNumber (counter) + scrollToActiveMatch
 ```
@@ -254,7 +256,7 @@ LogViewer
 - **No matches**: navigation buttons disabled, counter `0/0`, active highlight
   absent. Existing "No matching lines" empty-state message remains.
 - **Match index out of range** (lines removed by truncation/filter change):
-  clamped in the `$effect` that watches `matchingLineIndices`.
+  clamped in the `$effect` that watches `filteredLogs`.
 
 ## Testing
 
@@ -268,18 +270,19 @@ Conventions: `vitest` + `@testing-library/svelte` (see existing
   regex → `{ error }`.
 - `highlightLine`: substring + case variations; regex mode; error/empty → no
   highlight segments.
-- `countMatchingLines`: counts lines (not occurrences); respects modes.
+- `lineMatches`: respects substring/regex/case modes; returns `false` on
+  `null`/error matchers.
 
-### `src/lib/components/LogToolbar.test.ts` (extend existing)
+### `src/lib/components/LogToolbar.test.ts` (new — no existing toolbar tests)
 
 - `.*` toggle flips `regex` and reflects `aria-pressed`.
 - `Aa` toggle flips `caseSensitive` and reflects `aria-pressed`.
 - Nav `‹`/`›` invoke `onPrev`/`onNext`.
 - Counter renders `${active}/${total}`; hidden when `matchTotal === null`.
 - Buttons disabled when `matchTotal === 0`.
-- `regexError` set → input has danger border; nav disabled.
+- `regexError` set → input has danger border; nav disabled; popover present.
 
-### `LogViewer` behavior (via existing/new component tests)
+### `src/lib/components/LogViewer.test.ts` (new — no existing viewer tests)
 
 - Regex query filters correctly; invalid regex shows error, no crash.
 - `Enter` on focused search → `nextMatch`; `Shift+Enter` → `prevMatch`.
