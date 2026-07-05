@@ -299,3 +299,67 @@ processes:
         .expect("session");
     assert!(snap.stopped_at.is_some());
 }
+
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_stop_kills_process_tree_via_job() {
+    use std::net::{TcpListener, TcpStream};
+    use std::process::Command;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("addr").port();
+    drop(listener);
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let yaml = format!(
+        r#"
+processes:
+  holder:
+    kind: service
+    cmd: cmd /C "node -e \"require('net').createServer().listen({port})\""
+    stopTimeoutMs: 2000
+    ready:
+      type: delay
+      durationMs: 300
+"#
+    );
+    std::fs::write(dir.path().join("diavola.yml"), &yaml).expect("write config");
+    let loaded = config_loader::load_config(&dir.path().join("diavola.yml")).expect("load");
+
+    let project = ProjectRecord {
+        id: ProjectId::new(),
+        name: "port-holder".to_string(),
+        base_dir: dir.path().to_path_buf(),
+        config_source: ProjectSource::ProjectFile,
+        config_path: dir.path().join("diavola.yml"),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    let app = tauri::Builder::default()
+        .build(tauri::generate_context!())
+        .expect("build app");
+    let orchestrator = ProcessOrchestrator::new();
+
+    orchestrator
+        .start_session(app.handle().clone(), "win-window".to_string(), project, loaded)
+        .await
+        .expect("start");
+
+    let mut attempts = 0;
+    while TcpStream::connect(format!("127.0.0.1:{port}")).is_ok() {
+        attempts += 1;
+        if attempts > 50 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    orchestrator
+        .stop_session(app.handle().clone(), "win-window")
+        .await
+        .expect("stop");
+
+    let freed = TcpListener::bind(format!("127.0.0.1:{port}")).is_ok();
+    assert!(freed, "port {port} should be free after stop (no orphan)");
+    let _ = Command::new("taskkill").args(["/IM", "node.exe", "/F"]).status();
+}
