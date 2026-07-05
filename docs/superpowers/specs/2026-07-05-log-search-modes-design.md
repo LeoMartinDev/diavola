@@ -209,11 +209,21 @@ Mode group:
   button pattern (`grid h-6 w-6`, `aria-pressed`, `accent/15 text-accent` when
   active).
 
-Error state:
+Error state (no layout shift — critical requirement):
 
-- When `regexError` is non-null: search input border switches to
-  `border-danger`; nav and mode behavior treats matches as zero (nav
-  disabled). A tooltip/discreet caption under the input shows the message.
+The error must not push the log list down, ever. Three layered signals, none of
+which add height to the layout:
+
+- Search input border switches to `border-danger`.
+- A persistent `⚠` icon at the right inside the input footprint.
+- The counter slot (where `n/total` lives) shows a `⚠` instead of `0/0`.
+- A **floating popover** anchored under the input (`position: absolute`,
+  `z-index` above logs, with a small pointer arrow) shows the full message.
+  It appears while the field is focused and the error is active; it hides on
+  blur (the border + icons remain) and disappears entirely once the regex is
+  valid again.
+
+Navigation is disabled and treated as zero matches while `regexError` is set.
 
 Keyboard (search field focused): `Enter` → next, `Shift+Enter` → prev.
 Existing `/` (focus) and `Escape` (clear query) unchanged.
@@ -236,9 +246,11 @@ LogViewer
 ## Error Handling
 
 - **Invalid regex**: `buildMatcher` returns `{ error }`. The UI disables
-  navigation, marks the input red, and shows the error message. No exception
-  propagates; the app stays usable (substring mode or fixing the pattern
-  restores normal behavior).
+  navigation, marks the input red, and surfaces the message via a floating
+  popover + persistent icons (see "Error state" above). Critically, the error
+  feedback causes **no vertical layout shift** — the popover overlays the logs
+  instead of inserting a row. No exception propagates; the app stays usable
+  (substring mode or fixing the pattern restores normal behavior).
 - **No matches**: navigation buttons disabled, counter `0/0`, active highlight
   absent. Existing "No matching lines" empty-state message remains.
 - **Match index out of range** (lines removed by truncation/filter change):
@@ -277,5 +289,6 @@ Conventions: `vitest` + `@testing-library/svelte` (see existing
 
 ## Open Questions
 
-None at design time. (Defaults for wrap-around, active-highlight intensity, and
-persistence key were chosen during brainstorming and are recorded above.)
+None at design time. (Defaults for wrap-around, active-highlight intensity,
+persistence key, and the no-shift error presentation were chosen during
+brainstorming and are recorded above.)
