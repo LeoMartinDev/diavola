@@ -150,6 +150,22 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
+        let stop_grace = {
+            let state = self.inner.lock().await;
+            state
+                .sessions
+                .get(window_key)
+                .and_then(|active| {
+                    active.processes.get(&*process_name).map(|process| {
+                        lifecycle::resolve_stop_timeout(
+                            process.config.stop_timeout_ms,
+                            active.loaded_config.config.stop_timeout_ms,
+                        )
+                    })
+                })
+                .unwrap_or_else(|| lifecycle::resolve_stop_timeout(None, None))
+        };
+
         let (kill_tx, done_rx) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
@@ -184,7 +200,7 @@ impl ProcessOrchestrator {
             let _ = kill_tx.send(()).await;
         }
 
-        let _ = tokio::time::timeout(Duration::from_secs(10), done_rx).await;
+        let _ = tokio::time::timeout(stop_grace + Duration::from_secs(5), done_rx).await;
 
         self.emit_snapshot(&app_handle, window_key).await?;
         Ok(self.snapshot(window_key).await?)
@@ -258,7 +274,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<(), AppError> {
-        let (session_id, _, base_dir, env, config, runtime_id, log_tx) = {
+        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_stop_timeout_ms) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -278,6 +294,7 @@ impl ProcessOrchestrator {
             }
             let env =
                 lifecycle::build_process_env(&active.loaded_config.config.env, &process.config.env);
+            let global_stop_timeout_ms = active.loaded_config.config.stop_timeout_ms;
             process.snapshot.status = ProcessStatus::Starting;
             process.snapshot.started_at = Some(Utc::now());
             process.snapshot.exited_at = None;
@@ -294,6 +311,7 @@ impl ProcessOrchestrator {
                 process.config.clone(),
                 process.snapshot.runtime_id.clone(),
                 process.log_tx.clone(),
+                global_stop_timeout_ms,
             )
         };
 
@@ -450,6 +468,21 @@ impl ProcessOrchestrator {
         let exit_window_key = window_key.to_string();
         #[cfg(unix)]
         let wait_pid = child_pid;
+        let stop_grace = lifecycle::resolve_stop_timeout(
+            config.stop_timeout_ms,
+            global_stop_timeout_ms,
+        );
+        #[cfg(windows)]
+        let spawned_job = {
+            let mut state = self.inner.lock().await;
+            state
+                .sessions
+                .get_mut(window_key)
+                .and_then(|active| active.processes.get_mut(&*process_name))
+                .and_then(|p| p.job.clone())
+        };
+        #[cfg(windows)]
+        let wait_job = spawned_job.clone();
         thread::spawn(move || {
             tauri::async_runtime::block_on(async move {
                 let exit_status = {
@@ -457,14 +490,24 @@ impl ProcessOrchestrator {
                     tokio::select! {
                         result = child.wait() => result,
                         _ = kill_rx.recv() => {
-                            #[cfg(unix)]
-                            if let Some(pid) = wait_pid {
-                                unsafe {
-                                    libc::kill(-(pid as i32), libc::SIGKILL);
+                            // Graceful signal already sent by begin_process_termination.
+                            match tokio::time::timeout(stop_grace, child.wait()).await {
+                                Ok(result) => result,
+                                Err(_) => {
+                                    #[cfg(unix)]
+                                    if let Some(pid) = wait_pid {
+                                        unsafe {
+                                            libc::kill(-(pid as i32), libc::SIGKILL);
+                                        }
+                                    }
+                                    #[cfg(windows)]
+                                    if let Some(job) = wait_job.as_ref() {
+                                        let _ = job.terminate();
+                                    }
+                                    let _ = child.kill().await;
+                                    child.wait().await
                                 }
                             }
-                            let _ = child.kill().await;
-                            child.wait().await
                         }
                     }
                 };

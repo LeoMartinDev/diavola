@@ -64,18 +64,25 @@ pub(super) fn reset_managed_process(process: &mut ManagedProcess) {
 pub(super) fn begin_process_termination(process: &mut ManagedProcess) -> Option<mpsc::Sender<()>> {
     process.terminating = true;
 
-    #[cfg(unix)]
-    if let Some(pid) = process.pid {
-        unsafe {
-            libc::kill(-(pid as i32), libc::SIGKILL);
-        }
-    }
-
     if matches!(
         process.snapshot.status,
         ProcessStatus::Starting | ProcessStatus::Running | ProcessStatus::Ready
     ) {
         process.snapshot.status = ProcessStatus::Stopping;
+
+        // Graceful signal (race-free, synchronous). The forceful escalation is
+        // the wait task's responsibility after the grace window elapses.
+        #[cfg(unix)]
+        if let Some(pid) = process.pid {
+            unsafe {
+                libc::kill(-(pid as i32), libc::SIGTERM);
+            }
+        }
+        #[cfg(windows)]
+        if let Some(pid) = process.pid {
+            crate::infrastructure::job::send_ctrl_break(pid as u32);
+        }
+
         process.kill_tx.take()
     } else {
         None
