@@ -75,4 +75,13 @@
     bind:value={process.cmd}
     onblur={() => onFieldBlur?.(`process.${process.id}.cmd`)}
   />
+
+  <TextField
+    label="Stop timeout (ms)"
+    density="compact"
+    placeholder="10000"
+    error={processIssue(process, "stopTimeoutMs")}
+    bind:value={process.stopTimeoutMs}
+    onblur={() => onFieldBlur?.(`process.${process.id}.stopTimeoutMs`)}
+  />
 </section>

@@ -40,10 +40,12 @@ export type ProcessConfig = {
   env: Record<string, string>;
   dependsOn: Record<string, DependencyCondition>;
   ready?: ReadyConfig;
+  stopTimeoutMs?: number;
 };
 
 export type DiavolaConfig = {
   env?: Record<string, string>;
+  stopTimeoutMs?: number;
   processes: Record<string, ProcessConfig>;
 };
 

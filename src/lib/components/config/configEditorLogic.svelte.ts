@@ -29,6 +29,7 @@ export function useConfigEditor(
 
   const s = $state({
     globalEnvRows: [] as EnvRow[],
+    globalStopTimeoutMs: null as number | string | null,
     processes: [] as ProcessFormState[],
     selectedProcessId: null as string | null,
     loadedProjectId: null as string | null,
@@ -48,7 +49,7 @@ export function useConfigEditor(
       return s.processes.find((p) => p.id === s.selectedProcessId) ?? s.processes[0] ?? null;
     },
     get formState(): ConfigFormState {
-      return { globalEnvRows: s.globalEnvRows, processes: s.processes };
+      return { globalEnvRows: s.globalEnvRows, globalStopTimeoutMs: s.globalStopTimeoutMs, processes: s.processes };
     },
     get formIssueCount(): number {
       return s.validationIssues.length;
@@ -77,12 +78,13 @@ export function useConfigEditor(
 
   function currentYaml() {
     return serializeConfig(
-      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, processes: s.processes }),
+      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalStopTimeoutMs: s.globalStopTimeoutMs, processes: s.processes }),
     );
   }
 
   function resetEmpty() {
     s.globalEnvRows = [];
+    s.globalStopTimeoutMs = null;
     s.processes = [newProcess("api")];
     s.selectedProcessId = s.processes[0].id;
     s.processesViewMode = "list";
@@ -90,6 +92,7 @@ export function useConfigEditor(
 
   function resetUnloaded() {
     s.globalEnvRows = [];
+    s.globalStopTimeoutMs = null;
     s.processes = [];
     s.selectedProcessId = null;
     s.processesViewMode = "list";
@@ -119,6 +122,7 @@ export function useConfigEditor(
         return;
       }
       s.suppressDirty = true;
+      s.globalStopTimeoutMs = config.stopTimeoutMs ?? null;
       s.globalEnvRows = Object.entries(config.env ?? {}).map(([key, value]) => ({
         id: nextId("env"),
         key,
@@ -307,6 +311,14 @@ export function useConfigEditor(
 
   function markTouched(key: string) { s.touchedFields.add(key); }
 
+  function globalStopTimeoutError() {
+    return issueFor("global.stopTimeoutMs");
+  }
+
+  function onGlobalStopTimeoutChange(value: number | string | null) {
+    s.globalStopTimeoutMs = value;
+  }
+
   return Object.assign(s, {
     nextId,
     newProcess,
@@ -339,6 +351,8 @@ export function useConfigEditor(
     selectProcessByIndex,
     handleProcessOptionKeydown,
     markTouched,
+    globalStopTimeoutError,
+    onGlobalStopTimeoutChange,
     get debounceTimer(): ReturnType<typeof setTimeout> | null { return debounceTimer; },
     set debounceTimer(v: ReturnType<typeof setTimeout> | null) { debounceTimer = v; },
   });

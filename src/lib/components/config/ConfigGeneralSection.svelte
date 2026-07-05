@@ -1,12 +1,22 @@
 <script lang="ts">
   import type { ProjectRecord } from "$lib/types";
+  import TextField from "$lib/components/ui/TextField.svelte";
 
   type Props = {
     project: ProjectRecord | null;
     projectSourceLabel: string;
+    globalStopTimeoutMs: number | string | null;
+    globalStopTimeoutError: string | null;
+    onGlobalStopTimeoutChange: (value: number | string | null) => void;
   };
 
-  let { project, projectSourceLabel }: Props = $props();
+  let {
+    project,
+    projectSourceLabel,
+    globalStopTimeoutMs,
+    globalStopTimeoutError,
+    onGlobalStopTimeoutChange,
+  }: Props = $props();
 </script>
 
 <section class="grid gap-4">
@@ -42,4 +52,13 @@
       </div>
     </div>
   </div>
+
+  <TextField
+    label="Default stop timeout (ms)"
+    density="compact"
+    placeholder="10000"
+    error={globalStopTimeoutError}
+    value={globalStopTimeoutMs ?? ""}
+    oninput={(e) => onGlobalStopTimeoutChange((e.currentTarget as HTMLInputElement).value)}
+  />
 </section>

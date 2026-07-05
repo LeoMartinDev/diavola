@@ -20,6 +20,7 @@ const process: ProcessForm = {
   commandCmd: "",
   intervalMs: null,
   timeoutMs: 60000,
+  stopTimeoutMs: null,
 };
 
 function createProcess(overrides: Partial<ProcessForm> = {}): ProcessForm {

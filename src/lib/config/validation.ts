@@ -39,6 +39,11 @@ export function validateProjectDetails(input: ProjectDetailsInput): ValidationRe
 
 export function validateConfigForm(formState: ConfigFormState): ValidationResult {
   const issues: ValidationIssue[] = [];
+  validateStopTimeoutMs(
+    formState.globalStopTimeoutMs,
+    "global.stopTimeoutMs",
+    issues,
+  );
   validateProcesses(formState.processes, issues);
   return toResult(issues);
 }
@@ -90,6 +95,11 @@ function validateProcesses(processes: ProcessForm[], issues: ValidationIssue[]) 
     validateProcessEnvRows(process.id, process.envRows, issues);
     validateDependencies(process, names, processes, issues);
     validateReadyConfig(process, issues);
+    validateStopTimeoutMs(
+      process.stopTimeoutMs,
+      `process.${process.id}.stopTimeoutMs`,
+      issues,
+    );
   }
 }
 
@@ -190,6 +200,20 @@ function validateNonNegativeNumber(
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue) || numericValue < 0) {
     issues.push({ key, message: "Enter a finite number greater than or equal to 0." });
+  }
+}
+
+function validateStopTimeoutMs(
+  value: number | string | null,
+  key: string,
+  issues: ValidationIssue[],
+) {
+  if (value === null || value === "") {
+    return;
+  }
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue < 1000) {
+    issues.push({ key, message: "Stop timeout must be at least 1000 ms." });
   }
 }
 

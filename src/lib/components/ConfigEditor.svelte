@@ -122,7 +122,13 @@
           {/if}
 
           {#if ctx.activeSection === "settings-general"}
-            <ConfigGeneralSection {project} projectSourceLabel={ctx.projectSourceLabel} />
+            <ConfigGeneralSection
+              {project}
+              projectSourceLabel={ctx.projectSourceLabel}
+              globalStopTimeoutMs={ctx.globalStopTimeoutMs}
+              globalStopTimeoutError={ctx.globalStopTimeoutError()}
+              onGlobalStopTimeoutChange={ctx.onGlobalStopTimeoutChange}
+            />
           {:else if ctx.activeSection === "settings-environment"}
             <ConfigEnvironmentSection
               bind:rows={ctx.globalEnvRows}
