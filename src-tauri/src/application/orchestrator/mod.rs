@@ -46,6 +46,8 @@ pub(super) struct ManagedProcess {
     terminating: bool,
     generation: u64,
     stop_notify_tx: Option<oneshot::Sender<()>>,
+    #[cfg(windows)]
+    pub(super) job: Option<crate::infrastructure::job::Job>,
 }
 
 impl ProcessOrchestrator {
@@ -306,6 +308,8 @@ impl ProcessOrchestrator {
         self.emit_snapshot(&app_handle, window_key).await?;
 
         let spawned = spawn_process(&config.cmd, &base_dir, &env)?;
+        #[cfg(windows)]
+        let spawned_job = spawned.job;
         let child_pid = spawned.child.id();
         info!(process = %process_name, pid = ?child_pid, "process started");
         let child = Arc::new(Mutex::new(spawned.child));
@@ -330,6 +334,10 @@ impl ProcessOrchestrator {
                 )
             })?;
             process.child = Some(child.clone());
+            #[cfg(windows)]
+            {
+                process.job = spawned_job;
+            }
             process.pid = child_pid;
             process.kill_tx = Some(kill_tx);
             process.snapshot.status = ProcessStatus::Running;

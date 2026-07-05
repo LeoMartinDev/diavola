@@ -77,6 +77,8 @@ impl ActiveSession {
                     terminating: false,
                     generation: 0,
                     stop_notify_tx: None,
+                    #[cfg(windows)]
+                    job: None,
                 },
             );
         }
