@@ -303,7 +303,7 @@ processes:
 #[cfg(windows)]
 #[tokio::test]
 async fn windows_stop_kills_process_tree_via_job() {
-    use std::net::{TcpListener, TcpStream};
+    use std::net::TcpListener;
     use std::process::Command;
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -346,10 +346,18 @@ processes:
         .expect("start");
 
     let mut attempts = 0;
-    while TcpStream::connect(format!("127.0.0.1:{port}")).is_ok() {
+    loop {
+        let snap = orchestrator
+            .snapshot("win-window")
+            .await
+            .expect("snapshot")
+            .expect("session");
+        if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            break;
+        }
         attempts += 1;
         if attempts > 50 {
-            break;
+            panic!("never reached ready");
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
