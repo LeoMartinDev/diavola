@@ -663,7 +663,7 @@ git commit -m "feat(logs): add search mode toggles & match nav to toolbar"
 Create `src/lib/components/LogViewer.test.ts`:
 
 ```ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/svelte";
 
 import LogViewer from "./LogViewer.svelte";
@@ -675,6 +675,10 @@ beforeEach(() => {
   if (typeof Element.prototype.scrollTo === "function") {
     vi.spyOn(Element.prototype, "scrollTo").mockImplementation(() => {});
   }
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function makeLine(text: string, i: number): ProcessLogPayload {
@@ -708,7 +712,8 @@ describe("LogViewer search", () => {
       }),
     });
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
-    await fireEvent.input(input, { target: { value: "LISTENING" } });
+    input.value = "LISTENING";
+    await fireEvent.input(input);
     // non-matching line is gone
     expect(queryByText(/worker ready/)).toBeNull();
   });
@@ -719,7 +724,8 @@ describe("LogViewer search", () => {
     });
     await fireEvent.click(container.querySelector('[aria-label="Toggle regex"]')!);
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
-    await fireEvent.input(input, { target: { value: "error \\d+" } });
+    input.value = "error \\d+";
+    await fireEvent.input(input);
     expect(container.textContent).toMatch(/error 42/);
     expect(container.textContent).not.toMatch(/warn 7/);
   });
@@ -730,7 +736,8 @@ describe("LogViewer search", () => {
     });
     await fireEvent.click(container.querySelector('[aria-label="Toggle regex"]')!);
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
-    await fireEvent.input(input, { target: { value: "(unclosed" } });
+    input.value = "(unclosed";
+    await fireEvent.input(input);
     expect(getByText(/Unterminated|Invalid|regular expression/i)).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Next match"]')).toBeDisabled();
   });
@@ -745,7 +752,8 @@ describe("LogViewer search", () => {
         ?.textContent?.replace(/\s+/g, "");
 
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
-    await fireEvent.input(input, { target: { value: "one" } });
+    input.value = "one";
+    await fireEvent.input(input);
     expect(counter()).toBe("1/3");
 
     await fireEvent.keyDown(input, { key: "Enter" });
