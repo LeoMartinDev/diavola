@@ -32,6 +32,7 @@
   }: Props = $props();
 
   let searchInput = $state<HTMLInputElement | null>(null);
+  let searchFocused = $state(false);
 
   const showNav = $derived(matchTotal !== null);
   const navDisabled = $derived(regexError !== null || matchTotal === 0);
@@ -54,6 +55,8 @@
       type="text"
       placeholder="Search logs"
       spellcheck="false"
+      onfocus={() => (searchFocused = true)}
+      onblur={() => (searchFocused = false)}
       class="log-search h-7 w-full rounded-md border bg-surface-raised pl-6 pr-7 text-[12px] text-text outline-none transition-colors duration-75 placeholder:text-[11px] placeholder:text-text-subtle focus:border-accent {regexError
         ? 'border-danger'
         : 'border-border'}"
@@ -220,7 +223,7 @@
     </button>
   </div>
 
-  {#if regexError}
+  {#if searchFocused && regexError}
     <div
       class="absolute left-2 top-full z-10 mt-1 flex max-w-[280px] items-center gap-1.5 rounded-md border border-danger bg-surface-raised px-2.5 py-1.5 text-[11px] text-text font-mono shadow-md"
       role="status"

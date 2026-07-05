@@ -7,7 +7,6 @@
     buildMatcher,
     highlightLine,
     lineMatches,
-    type Matcher,
     type SearchOptions,
   } from "$lib/utils/searchHighlight";
   import Icon from "$lib/components/ui/Icon.svelte";
@@ -214,6 +213,7 @@
     pausedLogs = null;
     autoScroll = true;
     scrollTop = 0;
+    activeMatchIndex = 0;
   });
 
   $effect(() => {

@@ -75,8 +75,8 @@ describe("LogToolbar", () => {
     expect(btn).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("disables nav and shows the popover when regexError is set", () => {
-    const { getByRole, getByText } = render(LogToolbar, {
+  it("disables nav and shows the popover when regexError is set", async () => {
+    const { container, getByRole, getByText } = render(LogToolbar, {
       props: makeProps({
         matchTotal: 3,
         activeMatchNumber: 1,
@@ -84,6 +84,7 @@ describe("LogToolbar", () => {
       }),
     });
     expect(getByRole("button", { name: "Next match" })).toBeDisabled();
+    await fireEvent.focus(container.querySelector(".log-search")!);
     expect(getByText("Unterminated group")).toBeInTheDocument();
   });
 });

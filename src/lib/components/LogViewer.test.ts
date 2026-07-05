@@ -78,6 +78,7 @@ describe("LogViewer search", () => {
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
     input.value = "(unclosed";
     await fireEvent.input(input);
+    await fireEvent.focus(input);
     expect(getByText(/Unterminated|Invalid|regular expression/i)).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Next match"]')).toBeDisabled();
   });
