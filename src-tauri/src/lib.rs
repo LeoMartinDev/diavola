@@ -11,7 +11,7 @@ use std::sync::{
 };
 
 use tauri::Manager;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::infrastructure::config_loader::{find_config_in_cwd_or_parents, load_config};
 use crate::tauri_api::state::AppState;
