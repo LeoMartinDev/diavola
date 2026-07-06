@@ -1,3 +1,5 @@
+logTimestampPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"
+
 processes:
   setup:
     kind: task
@@ -27,6 +29,45 @@ processes:
     ready:
       type: delay
       durationMs: 500
+
+  multi-line-demo:
+    kind: service
+    cmd: |
+      deno eval '
+      setTimeout(() => {
+        console.log("[12:00:01] INFO  Starting application...");
+        console.log("  Initializing database connection pool");
+        console.log("  Loading configuration from /etc/app/config.yml");
+        console.log("  Registering 3 middleware handlers");
+        console.log("  Server listening on 0.0.0.0:3000");
+        console.log("[12:00:02] INFO  Application started successfully");
+        console.log("[12:00:03] WARN  Slow query detected (452ms)");
+        console.log("  SELECT * FROM users WHERE status = active");
+        console.log("  Query plan: Seq Scan on users (cost=0.00..153.24 rows=524 width=128)");
+        console.log("[12:00:04] ERROR Unhandled exception in worker thread");
+        console.log("  Error: Connection refused");
+        console.log("      at Socket.connect (net.ts:142:15)");
+        console.log("      at Database.connect (db.ts:89:22)");
+        console.log("      at App.start (app.ts:45:10)");
+        console.log("      at main (index.ts:12:3)");
+        console.log("[12:00:05] FATAL Process exited with code 1");
+        console.log("  Stack trace:");
+        console.log("  ─────────────────────────────────");
+        console.log("  AppError: Failed to initialize");
+        console.log("    at bootstrap (main.ts:23)");
+        console.log("    at Object.<anonymous> (main.ts:5)");
+        console.log("  ─────────────────────────────────");
+        console.log("[12:00:06] INFO  multi-line demo complete");
+      }, 2000);
+      setInterval(() => {}, 99999);
+      '
+    dependsOn:
+      logs-colores: ready
+    ready:
+      type: log
+      pattern: "multi-line demo complete"
+      regex: false
+      timeoutMs: 10000
 
   logs-colores:
     kind: service

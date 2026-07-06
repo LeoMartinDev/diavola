@@ -333,14 +333,22 @@
           <div
             style="position: absolute; top: {(startIndex + index) *
               ROW_HEIGHT}px; left: 0; right: 0; height: {ROW_HEIGHT}px;"
-            class="group flex items-center gap-3 px-3 hover:bg-surface-hover/40 border-l-[3px] {borderByStream[
+            class="group flex items-center gap-3 px-3 border-l-[3px] {borderByStream[
               row.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(
               startIndex + index,
             )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
-            <span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-text-subtle w-[70px]">
+            <span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-text-subtle w-[70px] select-none">
               {#if row.isFirstLine}
+                <button
+                  type="button"
+                  onclick={(e: MouseEvent) => { e.stopPropagation(); copyEntry(row.entryId); }}
+                  class="shrink-0 grid h-3 w-3 place-items-center rounded text-text-subtle hover:text-text opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Copy entry"
+                >
+                  <Icon name={copiedEntryId === row.entryId ? "check" : "copy"} size="xs" />
+                </button>
                 {new Date(row.timestamp).toLocaleTimeString()}
               {/if}
             </span>
@@ -365,16 +373,6 @@
                 </span>
               {/each}
             </span>
-            {#if row.isFirstLine}
-              <button
-                type="button"
-                onclick={(e: MouseEvent) => { e.stopPropagation(); copyEntry(row.entryId); }}
-                class="ml-auto hidden shrink-0 grid h-5 w-5 place-items-center rounded text-text-subtle hover:text-text group-hover:grid"
-                title="Copy entry"
-              >
-                <Icon name={copiedEntryId === row.entryId ? "check" : "copy"} size="xs" />
-              </button>
-            {/if}
           </div>
         {/each}
       </div>
