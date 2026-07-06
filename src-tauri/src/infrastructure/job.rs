@@ -1,6 +1,6 @@
 #![cfg(windows)]
 
-use std::{ffi::OsString, io, os::windows::ffi::OsStrExt, ptr};
+use std::{io, ptr};
 
 use windows_sys::Win32::{
     Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE},
@@ -11,7 +11,7 @@ use windows_sys::Win32::{
         AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
         TerminateJobObject, JobObjectExtendedLimitInformation,
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOBOBJECT_BASIC_LIMIT_INFORMATION,
-        JOB_OBJECT_LIMIT_KILL_ON_JOB,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     },
     System::Threading::OpenProcess,
 };
@@ -29,15 +29,15 @@ impl Job {
     pub fn new() -> Result<Self, AppError> {
         unsafe {
             let handle = CreateJobObjectW(ptr::null(), ptr::null());
-            if handle == 0 || handle == INVALID_HANDLE_VALUE {
+            if handle.is_null() || handle == INVALID_HANDLE_VALUE {
                 return Err(AppError::runtime_with_code(
                     "CreateJobObjectW failed",
                     crate::error::ErrorCode::ProcessStartFailed,
                 ));
             }
-            let mut basic = JOBOBJECT_BASIC_LIMIT_INFORMATION::default();
-            basic.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB;
-            let mut extended = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+            let mut basic: JOBOBJECT_BASIC_LIMIT_INFORMATION = std::mem::zeroed();
+            basic.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let mut extended: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
             extended.BasicLimitInformation = basic;
             let result = SetInformationJobObject(
                 handle,
@@ -65,7 +65,7 @@ impl Job {
                 0,
                 pid,
             );
-            if process == 0 || process == INVALID_HANDLE_VALUE {
+            if process.is_null() || process == INVALID_HANDLE_VALUE {
                 return Err(AppError::runtime_with_code(
                     format!("OpenProcess({pid}) failed"),
                     crate::error::ErrorCode::ProcessStartFailed,
