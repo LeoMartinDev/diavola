@@ -55,6 +55,25 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
+
+  /* ANSI 16-color palette tuned for the near-black surfaces. Used by the
+     log viewer to render colored child-process output. */
+  --ansi-black: #5c6370;
+  --ansi-red: #ff5454;
+  --ansi-green: #98c379;
+  --ansi-yellow: #e5c07b;
+  --ansi-blue: #61afef;
+  --ansi-magenta: #c678dd;
+  --ansi-cyan: #56b6c2;
+  --ansi-white: #d3d7cf;
+  --ansi-bright-black: #7f8590;
+  --ansi-bright-red: #ff8a8a;
+  --ansi-bright-green: #a5d78a;
+  --ansi-bright-yellow: #f0d68a;
+  --ansi-bright-blue: #82c3ff;
+  --ansi-bright-magenta: #d59ce0;
+  --ansi-bright-cyan: #7fd1d8;
+  --ansi-bright-white: #ffffff;
 }
 
 [data-theme="light"] {
@@ -75,10 +94,45 @@
   --color-success: #059669;
   --color-warning: #d97706;
   --color-danger: #dc2626;
+
+  /* ANSI palette tuned for white surfaces (GitHub-light inspired). */
+  --ansi-black: #1f2937;
+  --ansi-red: #cf222e;
+  --ansi-green: #1a7f37;
+  --ansi-yellow: #8a6914;
+  --ansi-blue: #0550ae;
+  --ansi-magenta: #8250df;
+  --ansi-cyan: #0a7a85;
+  --ansi-white: #57606a;
+  --ansi-bright-black: #6e7781;
+  --ansi-bright-red: #a40e26;
+  --ansi-bright-green: #2da44e;
+  --ansi-bright-yellow: #9a6700;
+  --ansi-bright-blue: #0969da;
+  --ansi-bright-magenta: #a475d9;
+  --ansi-bright-cyan: #1b7c83;
+  --ansi-bright-white: #24292f;
 }
 
 [data-theme="auto"] {
   color-scheme: light dark;
+
+  --ansi-black: #5c6370;
+  --ansi-red: #ff5454;
+  --ansi-green: #98c379;
+  --ansi-yellow: #e5c07b;
+  --ansi-blue: #61afef;
+  --ansi-magenta: #c678dd;
+  --ansi-cyan: #56b6c2;
+  --ansi-white: #d3d7cf;
+  --ansi-bright-black: #7f8590;
+  --ansi-bright-red: #ff8a8a;
+  --ansi-bright-green: #a5d78a;
+  --ansi-bright-yellow: #f0d68a;
+  --ansi-bright-blue: #82c3ff;
+  --ansi-bright-magenta: #d59ce0;
+  --ansi-bright-cyan: #7fd1d8;
+  --ansi-bright-white: #ffffff;
 }
 
 @media (prefers-color-scheme: light) {
@@ -98,6 +152,23 @@
     --color-success: #059669;
     --color-warning: #d97706;
     --color-danger: #dc2626;
+
+    --ansi-black: #1f2937;
+    --ansi-red: #cf222e;
+    --ansi-green: #1a7f37;
+    --ansi-yellow: #8a6914;
+    --ansi-blue: #0550ae;
+    --ansi-magenta: #8250df;
+    --ansi-cyan: #0a7a85;
+    --ansi-white: #57606a;
+    --ansi-bright-black: #6e7781;
+    --ansi-bright-red: #a40e26;
+    --ansi-bright-green: #2da44e;
+    --ansi-bright-yellow: #9a6700;
+    --ansi-bright-blue: #0969da;
+    --ansi-bright-magenta: #a475d9;
+    --ansi-bright-cyan: #1b7c83;
+    --ansi-bright-white: #24292f;
   }
 }
 

@@ -9,6 +9,7 @@
     lineMatches,
     type SearchOptions,
   } from "$lib/utils/searchHighlight";
+  import { parseAnsi, stripAnsi, styleToCss } from "$lib/utils/ansi";
   import Icon from "$lib/components/ui/Icon.svelte";
   import LogToolbar from "$lib/components/LogToolbar.svelte";
 
@@ -73,7 +74,7 @@
   let filteredLogs = $derived.by(() => {
     const base = paused ? (pausedLogs ?? logs) : logs;
     if (matcher === null || "error" in matcher) return base;
-    return base.filter((entry) => lineMatches(matcher, `${entry.stream} ${entry.line}`));
+    return base.filter((entry) => lineMatches(matcher, `${entry.stream} ${stripAnsi(entry.line)}`));
   });
 
   let activeMatchIndex = $state(0);
@@ -146,7 +147,7 @@
     const text = filteredLogs
       .map(
         (entry) =>
-          `${new Date(entry.timestamp).toLocaleTimeString()} ${entry.stream} ${entry.line}`,
+          `${new Date(entry.timestamp).toLocaleTimeString()} ${entry.stream} ${stripAnsi(entry.line)}`,
       )
       .join("\n");
     try {
@@ -312,24 +313,25 @@
               startIndex + index,
             )} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
-            <span class="shrink-0 select-none text-text-subtle">
-              {new Date(entry.timestamp).toLocaleTimeString()}
-            </span>
             <span
               class={`whitespace-nowrap ${toneByStream[entry.stream] ?? "text-text"}`}
             >
-              {#if entry.stream === "system" && /ready|listening/i.test(entry.line)}
+              {#if entry.stream === "system" && /ready|listening/i.test(stripAnsi(entry.line))}
                 <span class="mr-1">&#9679;</span>
               {/if}
-              {#each highlightLine(entry.line, matcher) as seg}
-                {#if seg.match}
-                  <mark
-                    class={`text-text rounded-[2px] ${startIndex + index === activeMatchIndex && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
-                    >{seg.text}</mark
-                  >
-                {:else}
-                  {seg.text}
-                {/if}
+              {#each parseAnsi(entry.line) as ansiSeg}
+                <span style={styleToCss(ansiSeg.style) ?? undefined}>
+                  {#each highlightLine(ansiSeg.text, matcher) as seg}
+                    {#if seg.match}
+                      <mark
+                        class={`text-text rounded-[2px] ${startIndex + index === activeMatchIndex && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
+                        >{seg.text}</mark
+                      >
+                    {:else}
+                      {seg.text}
+                    {/if}
+                  {/each}
+                </span>
               {/each}
             </span>
           </div>
