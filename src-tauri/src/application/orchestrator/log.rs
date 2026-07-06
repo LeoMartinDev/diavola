@@ -38,7 +38,7 @@ pub(super) fn spawn_log_task<R, F>(
                 runtime_id: runtime_id.clone(),
                 process_name: process_name.clone(),
                 stream,
-                line,
+                lines: vec![line],
                 timestamp: Utc::now(),
             };
             append_log_fn(payload.clone()).await;

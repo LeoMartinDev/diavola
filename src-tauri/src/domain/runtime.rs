@@ -61,6 +61,6 @@ pub struct ProcessLogPayload {
     pub runtime_id: ProcessRuntimeId,
     pub process_name: String,
     pub stream: LogStream,
-    pub line: String,
+    pub lines: Vec<String>,
     pub timestamp: DateTime<Utc>,
 }
