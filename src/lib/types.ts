@@ -122,7 +122,17 @@ export type ProcessLogPayload = {
   runtimeId: ProcessRuntimeId;
   processName: string;
   stream: LogStream;
-  line: string;
+  lines: string[];
+  timestamp: string;
+};
+
+export type FlatRow = {
+  entryId: number;
+  lineIndex: number;
+  isFirstLine: boolean;
+  isContinuation: boolean;
+  text: string;
+  stream: LogStream;
   timestamp: string;
 };
 
