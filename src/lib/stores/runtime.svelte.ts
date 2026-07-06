@@ -28,7 +28,6 @@ import {
     writeTerminal,
     type LaunchProjectInfo,
   } from "$lib/tauri/client";
-  import { resolveErrorMessage } from "$lib/utils/errors";
   import { createGitPoller } from "$lib/utils/gitPoller";
 import type {
   AppUpdateState,
@@ -40,7 +39,6 @@ import type {
   ProjectId,
   ProjectRecord,
   RunSessionSnapshot,
-  RuntimeErrorEvent,
   SessionStatusEvent,
   TerminalEvent,
   TerminalOutputEvent,
@@ -67,7 +65,6 @@ class RuntimeStore {
   processLogTruncation = $state<Record<string, number>>({});
   terminalOutput = $state<Record<string, string>>({});
   projectConfig = $state<ProjectConfigDocument | null>(null);
-  uiError = $state<string | null>(null);
   busy = $state(false);
   gitInfo = $state<GitInfo | null>(null);
   appUpdate = $state<AppUpdateState>({ status: "idle" });
@@ -344,8 +341,8 @@ class RuntimeStore {
       ) {
         this.#setProjectId(this.projects[0]?.id ?? null);
       }
-    } catch (error) {
-      this.setError(error);
+    } catch {
+      // ignore - refresh will retry on next focus
     }
   }
 
@@ -360,9 +357,6 @@ class RuntimeStore {
       this.session = await startProject(this.projectId);
       this.#setProjectId(this.session.projectId);
       this.syncProcessSelection();
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -373,9 +367,6 @@ class RuntimeStore {
     try {
       await stopProject();
       this.syncProcessSelection();
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -386,9 +377,8 @@ class RuntimeStore {
     try {
       this.session = await restartProcess(processName);
       this.syncProcessSelection();
-    } catch (error) {
-      this.setError(error);
-      throw error;
+    } catch {
+      this.#markProcessFailed(processName);
     } finally {
       this.busy = false;
     }
@@ -399,9 +389,8 @@ class RuntimeStore {
     try {
       this.session = await startProcess(processName);
       this.syncProcessSelection();
-    } catch (error) {
-      this.setError(error);
-      throw error;
+    } catch {
+      this.#markProcessFailed(processName);
     } finally {
       this.busy = false;
     }
@@ -412,9 +401,6 @@ class RuntimeStore {
     try {
       this.session = await stopProcess(processName);
       this.syncProcessSelection();
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -425,16 +411,11 @@ class RuntimeStore {
       this.projectConfig = null;
       return null;
     }
-    try {
-      const document = await loadProjectConfig(projectId, yaml);
-      if (!yaml) {
-        this.projectConfig = document;
-      }
-      return document;
-    } catch (error) {
-      this.setError(error);
-      throw error;
+    const document = await loadProjectConfig(projectId, yaml);
+    if (!yaml) {
+      this.projectConfig = document;
     }
+    return document;
   }
 
   async saveConfig(yaml: string, projectId = this.projectId) {
@@ -446,9 +427,6 @@ class RuntimeStore {
       const document = await saveProjectConfig(projectId, yaml);
       this.projectConfig = document;
       return document;
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -466,9 +444,6 @@ class RuntimeStore {
       this.selectedProcessRuntimeId = null;
       this.terminalOutput[terminal.terminalId] ??= "";
       return terminal;
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -495,9 +470,6 @@ class RuntimeStore {
       }
       this.selectedTerminalId =
         this.terminals.find((terminal) => terminal.isOpen)?.terminalId ?? null;
-    } catch (error) {
-      this.setError(error);
-      throw error;
     } finally {
       this.busy = false;
     }
@@ -507,22 +479,14 @@ class RuntimeStore {
     if (!this.selectedTerminalId) {
       return;
     }
-    try {
-      await writeTerminal(this.selectedTerminalId, data);
-    } catch (error) {
-      this.setError(error);
-    }
+    await writeTerminal(this.selectedTerminalId, data);
   }
 
   async resizeSelectedTerminal(cols: number, rows: number) {
     if (!this.selectedTerminalId) {
       return;
     }
-    try {
-      await resizeTerminal(this.selectedTerminalId, cols, rows);
-    } catch (error) {
-      this.setError(error);
-    }
+    await resizeTerminal(this.selectedTerminalId, cols, rows);
   }
 
   clearSelectedProcessLogs() {
@@ -533,8 +497,12 @@ class RuntimeStore {
     this.processLogTruncation[this.selectedProcessRuntimeId] = 0;
   }
 
-  clearError() {
-    this.uiError = null;
+  #markProcessFailed(processName: string) {
+    if (!this.session) return;
+    const processes = this.session.processes.map((p) =>
+      p.name === processName ? { ...p, status: "failed" as const } : p
+    );
+    this.session = { ...this.session, processes };
   }
 
   selectProcess(runtimeId: ProcessRuntimeId) {
@@ -571,10 +539,6 @@ class RuntimeStore {
       next.unshift(snapshot);
     }
     this.terminals = next;
-  }
-
-  setError(error: unknown) {
-    this.uiError = resolveErrorMessage(error);
   }
 
   async #attachEventListeners() {
@@ -620,11 +584,6 @@ class RuntimeStore {
         this.upsertTerminal(event.payload.snapshot);
       }),
     );
-    this.#unlisteners.push(
-      await listen<RuntimeErrorEvent>(TAURI_EVENTS.runtimeError, (event) => {
-        this.uiError = event.payload.message;
-      }),
-    );
   }
 
   async #applyLaunchParams() {
@@ -635,7 +594,6 @@ class RuntimeStore {
     const urlProjectId = params.get("projectId");
     const launchInfo = await getLaunchProject();
     this.launchLocked = launchInfo.locked;
-    this.uiError = launchInfo.error ?? null;
     if (launchInfo.project) {
       this.#upsertProject(launchInfo.project);
     }

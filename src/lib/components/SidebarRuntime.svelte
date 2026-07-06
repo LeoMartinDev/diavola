@@ -1,6 +1,5 @@
 <script lang="ts">
   import ProcessList from "$lib/components/ProcessList.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
   import { runtimeStore } from "$lib/stores/runtime.svelte";
 
   const session = $derived(runtimeStore.session);
@@ -15,15 +14,6 @@
 </script>
 
 <section class="min-h-0">
-  {#if runtimeStore.uiError}
-    <div class="mb-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-      <div class="break-words">{runtimeStore.uiError}</div>
-      <Button variant="ghost" size="sm" class="mt-2 h-auto px-0 text-danger/70 hover:bg-transparent hover:text-danger" onclick={() => runtimeStore.clearError()}>
-        Dismiss
-      </Button>
-    </div>
-  {/if}
-
   <div class="mb-2 flex items-center justify-between px-1">
     <h2 class="text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Processes</h2>
     {#if session}

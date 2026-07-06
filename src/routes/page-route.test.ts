@@ -22,7 +22,6 @@ describe("workspace empty state", () => {
     runtimeStore.terminals = [];
     runtimeStore.selectedProcessRuntimeId = null;
     runtimeStore.selectedTerminalId = null;
-    runtimeStore.uiError = null;
   });
 
   afterEach(() => {
