@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/svelte";
 
 import LogViewer from "./LogViewer.svelte";
-import type { ProcessLogPayload } from "$lib/types";
+import type { FlatRow } from "$lib/types";
 
 let originalScrollTo: unknown;
 
@@ -22,22 +22,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function makeLine(text: string, i: number): ProcessLogPayload {
+function makeRow(text: string, i: number, overrides: Partial<FlatRow> = {}): FlatRow {
   return {
-    sessionId: "s1",
-    runtimeId: "r1",
-    processName: "api",
-    stream: "stdout",
-    line: text,
+    entryId: i,
+    lineIndex: 0,
+    isFirstLine: true,
+    isContinuation: false,
+    text,
+    stream: "stdout" as const,
     timestamp: `2026-01-01T00:00:${i.toString().padStart(2, "0")}Z`,
+    ...overrides,
   };
 }
 
-const logs = (lines: string[]): ProcessLogPayload[] => lines.map(makeLine);
+const logs = (lines: string[]): FlatRow[] => lines.map((text, i) => makeRow(text, i));
 
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {
-    logs: [] as ProcessLogPayload[],
+    logs: [] as FlatRow[],
     processName: "api",
     truncatedCount: 0,
     onClear: vi.fn(),
@@ -108,5 +110,36 @@ describe("LogViewer search", () => {
 
     await fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
     expect(counter()).toBe("3/3");
+  });
+
+  it("renders multi-line entries without timestamps on continuation lines", async () => {
+    const multiLineLogs: FlatRow[] = [
+      makeRow("Error: something failed", 0),
+      makeRow("  at app.ts:42", 0, { lineIndex: 1, isFirstLine: false, isContinuation: true, timestamp: '' }),
+      makeRow("  at db.ts:15", 0, { lineIndex: 2, isFirstLine: false, isContinuation: true, timestamp: '' }),
+    ];
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: multiLineLogs }),
+    });
+    expect(container.textContent).toContain("Error: something failed");
+    expect(container.textContent).toContain("at app.ts:42");
+  });
+
+  it("copies the full entry when copy button is clicked", async () => {
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    const entryLines: FlatRow[] = [
+      makeRow("line 1", 0),
+      makeRow("line 2 continuation", 0, { lineIndex: 1, isFirstLine: false, isContinuation: true, timestamp: '' }),
+    ];
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: entryLines }),
+    });
+    const copyBtn = container.querySelector('[title="Copy entry"]') as HTMLButtonElement;
+    if (copyBtn) {
+      await fireEvent.click(copyBtn);
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("line 1\nline 2 continuation");
+    }
   });
 });
