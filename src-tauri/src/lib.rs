@@ -11,7 +11,7 @@ use std::sync::{
 };
 
 use tauri::Manager;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::infrastructure::config_loader::{find_config_in_cwd_or_parents, load_config};
 use crate::tauri_api::state::AppState;
@@ -183,11 +183,27 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+fn config_flag_path() -> Option<PathBuf> {
+    let mut args = std::env::args_os().skip(1);
+    while let Some(arg) = args.next() {
+        let arg_str = arg.to_string_lossy();
+        if arg_str == "--config" || arg_str == "-c" {
+            return args.next().map(resolve_launch_config_path);
+        }
+        if let Some(value) = arg_str.strip_prefix("--config=") {
+            return Some(resolve_launch_config_path(value));
+        }
+    }
+    None
+}
+
 fn launch_config_path() -> Option<PathBuf> {
-    std::env::args_os()
-        .skip(1)
-        .find(|argument| !argument.to_string_lossy().starts_with("--"))
-        .map(resolve_launch_config_path)
+    config_flag_path().or_else(|| {
+        std::env::args_os()
+            .skip(1)
+            .find(|argument| !argument.to_string_lossy().starts_with("--"))
+            .map(resolve_launch_config_path)
+    })
 }
 
 fn resolve_launch_config_path(argument: impl Into<PathBuf>) -> PathBuf {
