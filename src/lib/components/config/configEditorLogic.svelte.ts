@@ -30,6 +30,7 @@ export function useConfigEditor(
   const s = $state({
     globalEnvRows: [] as EnvRow[],
     globalGracePeriodMs: null as number | string | null,
+    globalLogTimestampPattern: "" as string,
     processes: [] as ProcessFormState[],
     selectedProcessId: null as string | null,
     loadedProjectId: null as string | null,
@@ -49,7 +50,7 @@ export function useConfigEditor(
       return s.processes.find((p) => p.id === s.selectedProcessId) ?? s.processes[0] ?? null;
     },
     get formState(): ConfigFormState {
-      return { globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, processes: s.processes };
+      return { globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, globalLogTimestampPattern: s.globalLogTimestampPattern, processes: s.processes };
     },
     get formIssueCount(): number {
       return s.validationIssues.length;
@@ -78,21 +79,23 @@ export function useConfigEditor(
 
   function currentYaml() {
     return serializeConfig(
-      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, processes: s.processes }),
+      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, globalLogTimestampPattern: s.globalLogTimestampPattern, processes: s.processes }),
     );
   }
 
   function resetEmpty() {
     s.globalEnvRows = [];
     s.globalGracePeriodMs = null;
+    s.globalLogTimestampPattern = "";
     s.processes = [newProcess("api")];
     s.selectedProcessId = s.processes[0].id;
     s.processesViewMode = "list";
   }
 
   function resetUnloaded() {
-    s.globalEnvRows = [];
+      s.globalEnvRows = [];
     s.globalGracePeriodMs = null;
+    s.globalLogTimestampPattern = "";
     s.processes = [];
     s.selectedProcessId = null;
     s.processesViewMode = "list";
@@ -123,6 +126,7 @@ export function useConfigEditor(
       }
       s.suppressDirty = true;
       s.globalGracePeriodMs = config.gracePeriodMs ?? null;
+      s.globalLogTimestampPattern = config.logTimestampPattern ?? "";
       s.globalEnvRows = Object.entries(config.env ?? {}).map(([key, value]) => ({
         id: nextId("env"),
         key,
