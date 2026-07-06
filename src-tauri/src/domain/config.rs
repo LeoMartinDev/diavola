@@ -8,6 +8,8 @@ pub struct DiavolaConfig {
     pub env: IndexMap<String, String>,
     #[serde(default)]
     pub grace_period_ms: Option<u64>,
+    #[serde(default)]
+    pub log_timestamp_pattern: Option<String>,
     pub processes: IndexMap<String, ProcessConfig>,
 }
 
@@ -24,6 +26,8 @@ pub struct ProcessConfig {
     pub ready: Option<ReadyConfig>,
     #[serde(default)]
     pub grace_period_ms: Option<u64>,
+    #[serde(default)]
+    pub log_timestamp_pattern: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

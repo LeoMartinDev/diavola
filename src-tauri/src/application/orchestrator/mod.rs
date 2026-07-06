@@ -899,6 +899,7 @@ mod tests {
                 env: Default::default(),
                 processes: Default::default(),
                 grace_period_ms: None,
+                log_timestamp_pattern: None,
             },
             raw_yaml: String::new(),
         }

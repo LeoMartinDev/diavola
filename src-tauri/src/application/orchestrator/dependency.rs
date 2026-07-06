@@ -81,6 +81,7 @@ mod tests {
                 depends_on: IndexMap::new(),
                 ready: None,
                 grace_period_ms: None,
+                log_timestamp_pattern: None,
             },
             snapshot: ProcessSnapshot {
                 runtime_id: ProcessRuntimeId::new(),
@@ -119,6 +120,7 @@ mod tests {
             depends_on,
             ready: None,
             grace_period_ms: None,
+            log_timestamp_pattern: None,
         };
 
         assert!(dependencies_satisfied(&processes, &config));
@@ -147,6 +149,7 @@ mod tests {
             depends_on,
             ready: None,
             grace_period_ms: None,
+            log_timestamp_pattern: None,
         };
 
         assert!(!dependencies_satisfied(&processes, &config));
