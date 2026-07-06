@@ -1,6 +1,6 @@
 <script lang="ts">
   import { MAX_LOG_LINES_PER_PROCESS } from "$lib/stores/runtime.svelte";
-  import type { ProcessLogPayload } from "$lib/types";
+  import type { FlatRow, ProcessLogPayload } from "$lib/types";
   import { isTypingTarget } from "$lib/utils/dom";
   import { computeVirtualScroll, isAtBottom } from "$lib/utils/virtualScroll";
   import {
@@ -14,7 +14,7 @@
   import LogToolbar from "$lib/components/LogToolbar.svelte";
 
   type Props = {
-    logs: ProcessLogPayload[];
+    logs: FlatRow[];
     processName: string | null;
     truncatedCount: number;
     onClear: () => void;
@@ -29,7 +29,7 @@
   let query = $state("");
   let autoScroll = $state(true);
   let paused = $state(false);
-  let pausedLogs = $state<ProcessLogPayload[] | null>(null);
+  let pausedLogs = $state<FlatRow[] | null>(null);
   let viewport = $state<HTMLDivElement | null>(null);
   let activeProcessName = $state<string | null>(null);
   let copied = $state(false);
@@ -74,7 +74,7 @@
   let filteredLogs = $derived.by(() => {
     const base = paused ? (pausedLogs ?? logs) : logs;
     if (matcher === null || "error" in matcher) return base;
-    return base.filter((entry) => lineMatches(matcher, `${entry.stream} ${stripAnsi(entry.line)}`));
+    return base.filter((row) => lineMatches(matcher, `${row.stream} ${stripAnsi(row.text)}`));
   });
 
   let activeMatchIndex = $state(0);
@@ -146,8 +146,8 @@
   async function copyLogs() {
     const text = filteredLogs
       .map(
-        (entry) =>
-          `${new Date(entry.timestamp).toLocaleTimeString()} ${entry.stream} ${stripAnsi(entry.line)}`,
+        (row) =>
+          `${row.timestamp ? new Date(row.timestamp).toLocaleTimeString() + ' ' : ''}${row.stream} ${stripAnsi(row.text)}`,
       )
       .join("\n");
     try {
@@ -159,6 +159,29 @@
       copyTimer = window.setTimeout(() => {
         copied = false;
         copyTimer = null;
+      }, 1400);
+    } catch {
+      // clipboard unavailable — fail silently
+    }
+  }
+
+  let copiedEntryId = $state<number | null>(null);
+  let entryCopyTimer = $state<number | null>(null);
+
+  async function copyEntry(entryId: number) {
+    const entryLines = filteredLogs
+      .filter((row) => row.entryId === entryId)
+      .map((row) => stripAnsi(row.text));
+    const text = entryLines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedEntryId = entryId;
+      if (entryCopyTimer !== null) {
+        clearTimeout(entryCopyTimer);
+      }
+      entryCopyTimer = window.setTimeout(() => {
+        copiedEntryId = null;
+        entryCopyTimer = null;
       }, 1400);
     } catch {
       // clipboard unavailable — fail silently
@@ -233,6 +256,9 @@
       if (copyTimer !== null) {
         clearTimeout(copyTimer);
       }
+      if (entryCopyTimer !== null) {
+        clearTimeout(entryCopyTimer);
+      }
     };
   });
 
@@ -249,15 +275,15 @@
   };
 
   const borderCornerClass = $derived((indexInLogs: number): string => {
-    const entry = filteredLogs[indexInLogs];
-    if (!entry) return "";
+    const row = filteredLogs[indexInLogs];
+    if (!row) return "";
     const prev = indexInLogs > 0 ? filteredLogs[indexInLogs - 1] : null;
     const next =
       indexInLogs < filteredLogs.length - 1
         ? filteredLogs[indexInLogs + 1]
         : null;
-    const sameAsPrev = prev !== null && prev.stream === entry.stream;
-    const sameAsNext = next !== null && next.stream === entry.stream;
+    const sameAsPrev = prev !== null && prev.entryId === row.entryId;
+    const sameAsNext = next !== null && next.entryId === row.entryId;
 
     if (!sameAsPrev && !sameAsNext) return "rounded-tl rounded-bl";
     if (!sameAsPrev) return "rounded-tl";
@@ -303,23 +329,28 @@
       </div>
     {:else}
       <div style="height: {totalHeight}px; position: relative;">
-        {#each visibleItems as entry, index (`${entry.timestamp}-${startIndex + index}`)}
+        {#each visibleItems as row, index (`${row.entryId}-${row.lineIndex}-${startIndex + index}`)}
           <div
             style="position: absolute; top: {(startIndex + index) *
               ROW_HEIGHT}px; left: 0; right: 0; height: {ROW_HEIGHT}px;"
             class="group flex items-center gap-3 px-3 hover:bg-surface-hover/40 border-l-[3px] {borderByStream[
-              entry.stream
+              row.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(
               startIndex + index,
-            )} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
+            )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
+            <span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-text-subtle w-[70px]">
+              {#if row.isFirstLine}
+                {new Date(row.timestamp).toLocaleTimeString()}
+              {/if}
+            </span>
             <span
-              class={`whitespace-nowrap ${toneByStream[entry.stream] ?? "text-text"}`}
+              class={`whitespace-nowrap ${toneByStream[row.stream] ?? "text-text"}`}
             >
-              {#if entry.stream === "system" && /ready|listening/i.test(stripAnsi(entry.line))}
+              {#if row.isFirstLine && row.stream === "system" && /ready|listening/i.test(stripAnsi(row.text))}
                 <span class="mr-1">&#9679;</span>
               {/if}
-              {#each parseAnsi(entry.line) as ansiSeg}
+              {#each parseAnsi(row.text) as ansiSeg}
                 <span style={styleToCss(ansiSeg.style) ?? undefined}>
                   {#each highlightLine(ansiSeg.text, matcher) as seg}
                     {#if seg.match}
@@ -334,6 +365,16 @@
                 </span>
               {/each}
             </span>
+            {#if row.isFirstLine}
+              <button
+                type="button"
+                onclick={(e: MouseEvent) => { e.stopPropagation(); copyEntry(row.entryId); }}
+                class="ml-auto hidden shrink-0 grid h-5 w-5 place-items-center rounded text-text-subtle hover:text-text group-hover:grid"
+                title="Copy entry"
+              >
+                <Icon name={copiedEntryId === row.entryId ? "check" : "copy"} size="xs" />
+              </button>
+            {/if}
           </div>
         {/each}
       </div>
