@@ -126,7 +126,41 @@ async function downloadAndRun() {
 
 function runBinary(binPath, platform) {
   console.log("Launching Diavola...");
-  spawn(binPath, process.argv.slice(2), { stdio: "inherit" });
+  const child = spawn(binPath, process.argv.slice(2), {
+    stdio: "inherit",
+  });
+
+  let cleaning = false;
+
+  function cleanupAndExit(signal) {
+    if (cleaning) return;
+    cleaning = true;
+
+    if (child.killed) {
+      process.exit(0);
+      return;
+    }
+
+    child.kill(signal);
+
+    const forceTimeout = setTimeout(() => {
+      if (!child.killed) {
+        child.kill("SIGKILL");
+      }
+    }, 5000).unref();
+
+    child.on("exit", () => {
+      clearTimeout(forceTimeout);
+      process.exit(0);
+    });
+  }
+
+  process.once("SIGINT", () => cleanupAndExit("SIGINT"));
+  process.once("SIGTERM", () => cleanupAndExit("SIGTERM"));
+
+  child.on("exit", (code) => {
+    process.exit(code ?? 0);
+  });
 }
 
 async function downloadFile(url, dest) {

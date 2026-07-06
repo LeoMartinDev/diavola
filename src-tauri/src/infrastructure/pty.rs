@@ -233,4 +233,15 @@ impl TerminalManager {
         }
         Ok(())
     }
+
+    pub async fn close_all(&self, app_handle: AppHandle) -> Result<(), AppError> {
+        let ids = {
+            let terminals = self.inner.lock().await;
+            terminals.keys().cloned().collect::<Vec<_>>()
+        };
+        for terminal_id in ids {
+            let _ = self.close_terminal(app_handle.clone(), &terminal_id);
+        }
+        Ok(())
+    }
 }

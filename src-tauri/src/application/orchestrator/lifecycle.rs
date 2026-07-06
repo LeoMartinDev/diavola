@@ -61,7 +61,7 @@ pub(super) fn reset_managed_process(process: &mut ManagedProcess) {
 /// separately from the child mutex so no deadlock is possible). This ensures
 /// the process exits before `stop_process` returns its snapshot, eliminating
 /// the "stuck at Stopping" race.
-pub(super) fn begin_process_termination(process: &mut ManagedProcess) -> Option<mpsc::Sender<()>> {
+pub(super) fn begin_process_termination(process: &mut ManagedProcess, force: bool) -> Option<mpsc::Sender<()>> {
     process.terminating = true;
 
     if matches!(
@@ -70,16 +70,19 @@ pub(super) fn begin_process_termination(process: &mut ManagedProcess) -> Option<
     ) {
         process.snapshot.status = ProcessStatus::Stopping;
 
-        // Graceful signal (race-free, synchronous). The forceful escalation is
-        // the wait task's responsibility after the grace window elapses.
         #[cfg(unix)]
         if let Some(pid) = process.pid {
+            let signal = if force { libc::SIGKILL } else { libc::SIGTERM };
             unsafe {
-                libc::kill(-(pid as i32), libc::SIGTERM);
+                libc::kill(-(pid as i32), signal);
             }
         }
         #[cfg(windows)]
-        if let Some(pid) = process.pid {
+        if force {
+            if let Some(job) = &process.job {
+                let _ = job.terminate();
+            }
+        } else if let Some(pid) = process.pid {
             crate::infrastructure::job::send_ctrl_break(pid as u32);
         }
 
@@ -228,8 +231,7 @@ mod tests {
             let (mut process, mut kill_rx) =
                 managed_process_with_kill_tx("api", ProcessKind::Service, status);
 
-            let kill_tx = begin_process_termination(&mut process);
-
+            let kill_tx = begin_process_termination(&mut process, false);
             assert_eq!(process.snapshot.status, ProcessStatus::Stopping);
             assert!(process.terminating, "terminating flag should be set for {status:?}");
             let kill_tx = kill_tx.expect("kill signal should be returned for {status:?}");
@@ -261,8 +263,7 @@ mod tests {
             let (mut process, _kill_rx) =
                 managed_process_with_kill_tx("api", ProcessKind::Service, status);
 
-            let kill_tx = begin_process_termination(&mut process);
-
+            let kill_tx = begin_process_termination(&mut process, false);
             assert!(
                 kill_tx.is_none(),
                 "no kill signal expected for terminal/pending state {status:?}"

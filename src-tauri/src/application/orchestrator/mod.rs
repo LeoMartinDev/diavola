@@ -95,8 +95,41 @@ impl ProcessOrchestrator {
         app_handle: AppHandle,
         window_key: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        self.finish_session(app_handle, window_key, None, true)
+        self.finish_session(app_handle, window_key, None, true, false)
             .await
+    }
+
+    pub async fn force_stop_session(
+        &self,
+        app_handle: AppHandle,
+        window_key: &str,
+    ) -> Result<Option<RunSessionSnapshot>, AppError> {
+        self.finish_session(app_handle, window_key, None, true, true)
+            .await
+    }
+
+    pub async fn stop_all_sessions(&self, app_handle: AppHandle) -> Result<(), AppError> {
+        let keys: Vec<String> = {
+            let state = self.inner.lock().await;
+            state.sessions.keys().cloned().collect()
+        };
+        for key in keys {
+            self.finish_session(app_handle.clone(), &key, None, true, false)
+                .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn force_stop_all_sessions(&self, app_handle: AppHandle) -> Result<(), AppError> {
+        let keys: Vec<String> = {
+            let state = self.inner.lock().await;
+            state.sessions.keys().cloned().collect()
+        };
+        for key in keys {
+            self.finish_session(app_handle.clone(), &key, None, true, true)
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn restart_process(
@@ -178,7 +211,7 @@ impl ProcessOrchestrator {
             }
             let (notify_tx, notify_rx) = oneshot::channel();
             process.stop_notify_tx = Some(notify_tx);
-            let kill_tx = lifecycle::begin_process_termination(process);
+            let kill_tx = lifecycle::begin_process_termination(process, false);
             ActiveSession::sync_snapshot_process(
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
@@ -645,6 +678,7 @@ impl ProcessOrchestrator {
             window_key,
             Some(format!("process `{process_name}` exited unexpectedly")),
             false,
+            false,
         )
         .await?;
         Ok(())
@@ -706,7 +740,7 @@ impl ProcessOrchestrator {
             return Ok(());
         }
 
-        self.finish_session(app_handle, window_key, Some(message), false)
+        self.finish_session(app_handle, window_key, Some(message), false, false)
             .await?;
         Ok(())
     }
@@ -717,6 +751,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         failure_message: Option<String>,
         explicit_stop: bool,
+        force: bool,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
         info!("session stopped");
         let kill_txs = {
@@ -729,7 +764,7 @@ impl ProcessOrchestrator {
             Arc::make_mut(&mut active.snapshot).stopped_at = Some(stopped_at);
             let mut kill_txs = Vec::new();
             for process in active.processes.values_mut() {
-                if let Some(kill_tx) = lifecycle::begin_process_termination(process) {
+                if let Some(kill_tx) = lifecycle::begin_process_termination(process, force) {
                     kill_txs.push(kill_tx);
                 } else if explicit_stop
                     && matches!(

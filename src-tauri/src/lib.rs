@@ -5,6 +5,10 @@ pub mod infrastructure;
 pub mod tauri_api;
 
 use std::path::PathBuf;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use tauri::Manager;
 use tracing::{error, info, warn};
@@ -27,10 +31,58 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            let closing = Arc::new(AtomicBool::new(false));
+
             if let Some(window) = app.get_webview_window("main") {
-                if let Err(err) = window.set_decorations(false) {
-                    warn!(error = %err, "failed to disable window decorations");
+                #[cfg(not(target_os = "macos"))]
+                {
+                    if let Err(err) = window.set_decorations(false) {
+                        warn!(error = %err, "failed to disable window decorations");
+                    }
                 }
+
+                #[cfg(target_os = "macos")]
+                {
+                    use objc2_app_kit::{NSWindow, NSWindowTitleVisibility};
+                    if let Ok(ns_window) = window.ns_window() {
+                        let ns_window = ns_window as *mut NSWindow;
+                        unsafe {
+                            (*ns_window).setTitleVisibility(NSWindowTitleVisibility::Hidden);
+                        }
+                    }
+                }
+
+                let app_handle = app.handle().clone();
+                let state = app.state::<AppState>().inner().clone();
+                let closing_flag = closing.clone();
+                window.clone().on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        if closing_flag.load(Ordering::Acquire) {
+                            return;
+                        }
+                        closing_flag.store(true, Ordering::Release);
+                        api.prevent_close();
+                        let app_handle = app_handle.clone();
+                        let state = state.clone();
+                        let window_label = window.label().to_string();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = state
+                                .orchestrator
+                                .force_stop_session(app_handle.clone(), &window_label)
+                                .await;
+                            let _ = state
+                                .terminal_manager
+                                .close_all_for_window(
+                                    app_handle.clone(),
+                                    &window_label,
+                                )
+                                .await;
+                            if let Some(w) = app_handle.get_webview_window(&window_label) {
+                                let _ = w.close();
+                            }
+                        });
+                    }
+                });
             }
 
             let state = app.state::<AppState>().inner().clone();
@@ -98,6 +150,13 @@ pub fn run() {
                 error!(error = %err, code = ?err.code(), "failed to import launch config");
                 Box::<dyn std::error::Error>::from(err.to_string())
             })?;
+
+            let app_handle = app.handle().clone();
+            let state = app.state::<AppState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                shutdown_signal_handler(app_handle, state).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -155,4 +214,35 @@ fn resolve_launch_config_path(argument: impl Into<PathBuf>) -> PathBuf {
     }
 
     path
+}
+
+async fn shutdown_signal_handler(app_handle: tauri::AppHandle, state: AppState) {
+    #[cfg(unix)]
+    {
+        let mut sigterm = tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::terminate(),
+        )
+        .expect("failed to install SIGTERM handler");
+        let mut sigint = tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::interrupt(),
+        )
+        .expect("failed to install SIGINT handler");
+
+        tokio::select! {
+            _ = sigterm.recv() => {}
+            _ = sigint.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
+
+    info!("shutdown signal received, stopping all sessions");
+    let _ = state
+        .orchestrator
+        .force_stop_all_sessions(app_handle.clone())
+        .await;
+    let _ = state.terminal_manager.close_all(app_handle).await;
+    std::process::exit(0);
 }
