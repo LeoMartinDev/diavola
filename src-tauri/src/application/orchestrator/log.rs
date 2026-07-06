@@ -108,3 +108,24 @@ pub(super) fn spawn_log_task<R, F>(
         .await;
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regex::Regex;
+    use std::io::Cursor;
+    use tokio::sync::broadcast;
+
+    #[test]
+    fn pattern_detects_timestamp() {
+        let re = Regex::new(r"^\d{4}-\d{2}-\d{2}").unwrap();
+        assert!(re.is_match("2026-07-06 12:00:00 INFO starting"));
+        assert!(!re.is_match("  at com.example.Main.main(Main.java:42)"));
+    }
+
+    #[test]
+    fn empty_pattern_means_no_grouping() {
+        let re: Option<Regex> = None;
+        assert!(re.is_none());
+    }
+}

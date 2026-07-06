@@ -345,7 +345,19 @@ impl ProcessOrchestrator {
             .log_timestamp_pattern
             .as_deref()
             .or(global_log_timestamp_pattern.as_deref())
-            .and_then(|p| regex::Regex::new(p).ok());
+            .and_then(|p| {
+                regex::Regex::new(p)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            process = %process_name,
+                            pattern = %p,
+                            error = %e,
+                            "invalid logTimestampPattern, falling back to single-line mode"
+                        );
+                        e
+                    })
+                    .ok()
+            });
 
         self.emit_snapshot(&app_handle, window_key).await?;
 
