@@ -130,7 +130,7 @@ function log(
   line: string,
   timestamp: string,
 ): ProcessLogPayload {
-  return { sessionId, runtimeId, processName, stream, line, timestamp };
+  return { sessionId, runtimeId, processName, stream, lines: [line], timestamp };
 }
 
 const denoRunnerLogs: MockProcessLogs = {

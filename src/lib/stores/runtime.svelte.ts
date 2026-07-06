@@ -31,6 +31,7 @@ import {
   import { createGitPoller } from "$lib/utils/gitPoller";
 import type {
   AppUpdateState,
+  FlatRow,
   GitInfo,
   ProcessLogEvent,
   ProcessLogPayload,
@@ -61,7 +62,7 @@ class RuntimeStore {
   launchLocked = $state<boolean>(false);
   selectedProcessRuntimeId = $state<ProcessRuntimeId | null>(null);
   selectedTerminalId = $state<TerminalSessionId | null>(null);
-  processLogs = $state<Record<string, ProcessLogPayload[]>>({});
+  processLogs = $state<Record<string, FlatRow[]>>({});
   processLogTruncation = $state<Record<string, number>>({});
   terminalOutput = $state<Record<string, string>>({});
   projectConfig = $state<ProjectConfigDocument | null>(null);
@@ -202,7 +203,7 @@ class RuntimeStore {
     return null;
   }
 
-  logsForSelectedProcess() {
+  logsForSelectedProcess(): FlatRow[] {
     return this.selectedProcessRuntimeId
       ? (this.processLogs[this.selectedProcessRuntimeId] ?? [])
       : [];
@@ -541,6 +542,21 @@ class RuntimeStore {
     this.terminals = next;
   }
 
+  #entryCounter = 0;
+
+  #flattenPayload(payload: ProcessLogPayload): FlatRow[] {
+    const entryId = this.#entryCounter++;
+    return payload.lines.map((text, i) => ({
+      entryId,
+      lineIndex: i,
+      isFirstLine: i === 0,
+      isContinuation: i > 0,
+      text,
+      stream: payload.stream,
+      timestamp: i === 0 ? payload.timestamp : '',
+    }));
+  }
+
   async #attachEventListeners() {
     this.#unlisteners.push(
       await listen<SessionStatusEvent>(TAURI_EVENTS.sessionSnapshot, (event) => {
@@ -562,7 +578,8 @@ class RuntimeStore {
           return;
         }
         const current = this.processLogs[payload.runtimeId] ?? [];
-        const appended = [...current, payload];
+        const newRows = this.#flattenPayload(payload);
+        const appended = [...current, ...newRows];
         const overflow = Math.max(0, appended.length - MAX_LOG_LINES_PER_PROCESS);
         this.processLogs[payload.runtimeId] = overflow > 0 ? appended.slice(overflow) : appended;
         this.processLogTruncation[payload.runtimeId] =
