@@ -28,14 +28,14 @@ pub(super) fn spawn_log_task<R, F>(
     timestamp_pattern: Option<regex::Regex>,
 ) where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
-    F: Fn(ProcessLogPayload) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static,
+    F: Fn(ProcessLogPayload) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
 {
     tokio::spawn(async move {
         let mut lines_reader = BufReader::new(reader).lines();
         let mut buffer: Vec<String> = Vec::new();
         let mut first_timestamp: Option<chrono::DateTime<Utc>> = None;
 
-        fn emit(
+        async fn emit(
             buffer: &mut Vec<String>,
             first_timestamp: &mut Option<chrono::DateTime<Utc>>,
             app_handle: &AppHandle,
@@ -44,7 +44,7 @@ pub(super) fn spawn_log_task<R, F>(
             runtime_id: &ProcessRuntimeId,
             process_name: &str,
             stream: LogStream,
-            append_log_fn: &dyn Fn(ProcessLogPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>,
+            append_log_fn: &(dyn Fn(ProcessLogPayload) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync),
         ) {
             if buffer.is_empty() {
                 return;
@@ -61,7 +61,7 @@ pub(super) fn spawn_log_task<R, F>(
             let _ = app_handle.emit_to(window_key, PROCESS_LOG_EVENT, ProcessLogEvent {
                 payload: payload.clone(),
             });
-            let _ = append_log_fn(payload);
+            append_log_fn(payload).await;
             *first_timestamp = None;
         }
 
@@ -84,7 +84,8 @@ pub(super) fn spawn_log_task<R, F>(
                     &process_name,
                     stream,
                     &append_log_fn,
-                );
+                )
+                .await;
             }
 
             if first_timestamp.is_none() {
@@ -103,6 +104,7 @@ pub(super) fn spawn_log_task<R, F>(
             &process_name,
             stream,
             &append_log_fn,
-        );
+        )
+        .await;
     });
 }
