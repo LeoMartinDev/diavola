@@ -297,7 +297,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<(), AppError> {
-        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_grace_period_ms) = {
+        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_grace_period_ms, global_log_timestamp_pattern) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -318,6 +318,8 @@ impl ProcessOrchestrator {
             let env =
                 lifecycle::build_process_env(&active.loaded_config.config.env, &process.config.env);
             let global_grace_period_ms = active.loaded_config.config.grace_period_ms;
+            let global_log_timestamp_pattern =
+                active.loaded_config.config.log_timestamp_pattern.clone();
             process.snapshot.status = ProcessStatus::Starting;
             process.snapshot.started_at = Some(Utc::now());
             process.snapshot.exited_at = None;
@@ -335,8 +337,15 @@ impl ProcessOrchestrator {
                 process.snapshot.runtime_id.clone(),
                 process.log_tx.clone(),
                 global_grace_period_ms,
+                global_log_timestamp_pattern,
             )
         };
+
+        let timestamp_pattern = config
+            .log_timestamp_pattern
+            .as_deref()
+            .or(global_log_timestamp_pattern.as_deref())
+            .and_then(|p| regex::Regex::new(p).ok());
 
         self.emit_snapshot(&app_handle, window_key).await?;
 
@@ -407,6 +416,7 @@ impl ProcessOrchestrator {
             spawned.stdout,
             log_tx.clone(),
             append_fn,
+            timestamp_pattern.clone(),
         );
 
         let orchestrator = self.clone();
@@ -433,6 +443,7 @@ impl ProcessOrchestrator {
             spawned.stderr,
             log_tx.clone(),
             append_fn,
+            timestamp_pattern.clone(),
         );
 
         if matches!(config.kind, ProcessKind::Service) {
