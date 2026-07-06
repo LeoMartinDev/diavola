@@ -23,16 +23,14 @@ async function patchJson(path: string, version: string): Promise<void> {
 }
 
 async function patchCargoVersion(path: string, version: string): Promise<void> {
-  let text = await Deno.readTextFile(path);
-  const updated = text.replace(
-    /^(\[package\][\s\S]*?\nversion\s*=\s*")([^"]*)(")/m,
-    `$1${version}$3`,
-  );
-  if (updated === text) {
+  const text = await Deno.readTextFile(path);
+  const regex = /^(\[package\][\s\S]*?\nversion\s*=\s*")([^"]*)(")/m;
+  if (!regex.test(text)) {
     throw new Error(
       `ci_version: could not find [package] version to patch in ${path}`,
     );
   }
+  const updated = text.replace(regex, `$1${version}$3`);
   await Deno.writeTextFile(path, updated);
 }
 
