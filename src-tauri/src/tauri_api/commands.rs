@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-#[cfg(target_os = "macos")]
-use tauri::TitleBarStyle;
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::{
@@ -398,10 +396,6 @@ pub async fn open_project_window(
     let win_builder = WebviewWindowBuilder::new(&app_handle, label, url)
         .title(format!("{} — Diavola", project.name));
 
-    #[cfg(target_os = "macos")]
-    let win_builder = win_builder.title_bar_style(TitleBarStyle::Overlay);
-
-    #[cfg(not(target_os = "macos"))]
     let win_builder = win_builder.decorations(false);
 
     win_builder.build().map_err(|error| error.to_string())?;
