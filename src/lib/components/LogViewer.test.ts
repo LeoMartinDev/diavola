@@ -250,6 +250,29 @@ describe("LogViewer search", () => {
     expect(renderedRows[5].className).toContain("rounded-bl");
   });
 
+  it("groups indented continuation lines with their parent entry", async () => {
+    const rows = [
+      makeRow("[12:00:01] INFO  Starting application...", 1),
+      makeRow("  Initializing database connection pool", 2),
+      makeRow("  Loading configuration from /etc/app/config.yml", 3),
+      makeRow("[12:00:02] INFO  Application started successfully", 4),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: rows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(4);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[0].className).not.toContain("rounded-bl");
+    expect(renderedRows[1].className).not.toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-bl");
+    expect(renderedRows[2].className).toContain("rounded-bl");
+    expect(renderedRows[3].className).toContain("rounded-tl");
+    expect(renderedRows[3].className).toContain("rounded-bl");
+  });
+
   it("does not merge visual groups across stdout and stderr boundaries", async () => {
     const objectRows = [
       makeRow("payload: {", 1, { stream: "stdout" }),

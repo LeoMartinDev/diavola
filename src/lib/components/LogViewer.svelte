@@ -279,8 +279,10 @@
   };
 
   function isObjectContinuation(row: FlatRow): boolean {
-    const text = stripAnsi(row.text).trimStart();
+    const raw = stripAnsi(row.text);
+    const text = raw.trimStart();
     return (
+      raw !== text ||
       text.startsWith('"') ||
       text === "{" ||
       text === "[" ||
@@ -329,7 +331,7 @@
         }
         continue;
       }
-      if (!isObjectContinuation(previous)) break;
+      if (!isObjectContinuation(previous)) return previous.entryId;
     }
 
     return row.entryId;
