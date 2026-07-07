@@ -142,4 +142,164 @@ describe("LogViewer search", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith("line 1\nline 2 continuation");
     }
   });
+
+  it("visually groups object-like continuation rows even when each line is a separate payload", async () => {
+    const objectRows = [
+      makeRow("currentFiscalYearConfiguration: {", 1),
+      makeRow('"fiscalRegime": "is",', 2),
+      makeRow('"year": 2025', 3),
+      makeRow("}", 4),
+      makeRow("responseTimeMs: 21", 5),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: objectRows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(5);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-tl");
+    expect(renderedRows[2].className).not.toContain("rounded-bl");
+    expect(renderedRows[3].className).toContain("rounded-bl");
+    expect(renderedRows[4].className).toContain("rounded-tl");
+    expect(renderedRows[4].className).toContain("rounded-bl");
+  });
+
+  it("keeps nested object-like payloads in one contiguous visual group", async () => {
+    const objectRows = [
+      makeRow("payload: {", 1),
+      makeRow('"nested": {', 2),
+      makeRow('"value": 1', 3),
+      makeRow("}", 4),
+      makeRow("}", 5),
+      makeRow("responseTimeMs: 21", 6),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: objectRows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(6);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-bl");
+    expect(renderedRows[2].className).not.toContain("rounded-tl");
+    expect(renderedRows[2].className).not.toContain("rounded-bl");
+    expect(renderedRows[3].className).not.toContain("rounded-tl");
+    expect(renderedRows[4].className).toContain("rounded-bl");
+    expect(renderedRows[5].className).toContain("rounded-tl");
+    expect(renderedRows[5].className).toContain("rounded-bl");
+  });
+
+  it("keeps anonymous nested containers within the surrounding structured visual group", async () => {
+    const objectRows = [
+      makeRow("payload: [", 1),
+      makeRow("{", 2),
+      makeRow('"id": 1', 3),
+      makeRow("}", 4),
+      makeRow("]", 5),
+      makeRow("responseTimeMs: 21", 6),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: objectRows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(6);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[0].className).not.toContain("rounded-bl");
+    expect(renderedRows[1].className).not.toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-bl");
+    expect(renderedRows[2].className).not.toContain("rounded-tl");
+    expect(renderedRows[2].className).not.toContain("rounded-bl");
+    expect(renderedRows[3].className).not.toContain("rounded-tl");
+    expect(renderedRows[3].className).not.toContain("rounded-bl");
+    expect(renderedRows[4].className).toContain("rounded-bl");
+    expect(renderedRows[5].className).toContain("rounded-tl");
+    expect(renderedRows[5].className).toContain("rounded-bl");
+  });
+
+  it("keeps adjacent top-level anonymous containers as separate visual groups", async () => {
+    const objectRows = [
+      makeRow("{", 1),
+      makeRow('"id": 1', 2),
+      makeRow("}", 3),
+      makeRow("{", 4),
+      makeRow('"id": 2', 5),
+      makeRow("}", 6),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: objectRows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(6);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[0].className).not.toContain("rounded-bl");
+    expect(renderedRows[1].className).not.toContain("rounded-tl");
+    expect(renderedRows[1].className).not.toContain("rounded-bl");
+    expect(renderedRows[2].className).toContain("rounded-bl");
+    expect(renderedRows[3].className).toContain("rounded-tl");
+    expect(renderedRows[3].className).not.toContain("rounded-bl");
+    expect(renderedRows[4].className).not.toContain("rounded-tl");
+    expect(renderedRows[4].className).not.toContain("rounded-bl");
+    expect(renderedRows[5].className).toContain("rounded-bl");
+  });
+
+  it("does not merge visual groups across stdout and stderr boundaries", async () => {
+    const objectRows = [
+      makeRow("payload: {", 1, { stream: "stdout" }),
+      makeRow('"message": "boom"', 2, { stream: "stderr" }),
+      makeRow("}", 3, { stream: "stdout" }),
+    ];
+
+    const { container } = render(LogViewer, {
+      props: makeProps({ logs: objectRows }),
+    });
+
+    const renderedRows = Array.from(container.querySelectorAll('[data-log-row="true"]'));
+    expect(renderedRows).toHaveLength(3);
+    expect(renderedRows[0].className).toContain("rounded-tl");
+    expect(renderedRows[0].className).toContain("rounded-bl");
+    expect(renderedRows[1].className).toContain("rounded-tl");
+    expect(renderedRows[1].className).toContain("rounded-bl");
+    expect(renderedRows[2].className).toContain("rounded-tl");
+    expect(renderedRows[2].className).toContain("rounded-bl");
+  });
+});
+
+describe("LogViewer autoscroll", () => {
+  it("keeps rendering newest rows after many logs arrive while pinned to bottom", async () => {
+    Element.prototype.scrollTo = vi.fn(function (this: Element, options?: ScrollToOptions | number) {
+      if (typeof options === "object" && options !== null && "top" in options) {
+        Object.defineProperty(this, "scrollTop", {
+          configurable: true,
+          value: Number(options.top ?? 0),
+        });
+      }
+    }) as unknown as typeof Element.prototype.scrollTo;
+
+    const initialLogs = logs(Array.from({ length: 20 }, (_, i) => `line ${i}`));
+    const { container, rerender } = render(LogViewer, {
+      props: makeProps({ logs: initialLogs }),
+    });
+
+    const viewport = container.querySelector('[data-native-selectable="logs"]') as HTMLDivElement;
+    Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 220 });
+    Object.defineProperty(viewport, "scrollHeight", { configurable: true, value: 440 });
+    Object.defineProperty(viewport, "scrollTop", { configurable: true, value: 220 });
+    await fireEvent.scroll(viewport);
+
+    const nextLogs = logs(Array.from({ length: 1_000 }, (_, i) => `line ${i}`));
+    Object.defineProperty(viewport, "scrollHeight", { configurable: true, value: 22_000 });
+    await rerender(makeProps({ logs: nextLogs }));
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(container.textContent).toContain("line 999");
+  });
 });

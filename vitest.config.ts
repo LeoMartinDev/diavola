@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 // component tests use the standalone Svelte plugin, so the alias is replicated
 // here to match SvelteKit's generated tsconfig paths.
 export default defineConfig({
-  plugins: [svelte({ hot: false })],
+  plugins: [svelte()],
   test: {
     environment: "jsdom",
     globals: true,

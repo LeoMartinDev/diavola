@@ -18,6 +18,12 @@ fn write_config(dir: &TempDir, yaml: &str) -> LoadedProjectConfig {
     config_loader::load_config(&config_path).expect("load config")
 }
 
+fn build_test_app() -> tauri::App<tauri::Wry> {
+    tauri::Builder::default()
+        .build(tauri::generate_context!())
+        .expect("build app")
+}
+
 #[tokio::test]
 #[cfg_attr(
     target_os = "linux",
@@ -41,9 +47,7 @@ processes:
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let app = tauri::Builder::default()
-        .build(tauri::generate_context!())
-        .expect("build app");
+    let app = build_test_app();
     let orchestrator = ProcessOrchestrator::new();
 
     let snapshot = orchestrator
@@ -113,9 +117,7 @@ processes:
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let app = tauri::Builder::default()
-        .build(tauri::generate_context!())
-        .expect("build app");
+    let app = build_test_app();
     let orchestrator = ProcessOrchestrator::new();
 
     orchestrator
@@ -183,9 +185,7 @@ processes:
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let app = tauri::Builder::default()
-        .build(tauri::generate_context!())
-        .expect("build app");
+    let app = build_test_app();
     let orchestrator = ProcessOrchestrator::new();
 
     orchestrator
@@ -255,9 +255,7 @@ processes:
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let app = tauri::Builder::default()
-        .build(tauri::generate_context!())
-        .expect("build app");
+    let app = build_test_app();
     let orchestrator = ProcessOrchestrator::new();
 
     orchestrator
@@ -335,9 +333,7 @@ processes:
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
-    let app = tauri::Builder::default()
-        .build(tauri::generate_context!())
-        .expect("build app");
+    let app = build_test_app();
     let orchestrator = ProcessOrchestrator::new();
 
     orchestrator

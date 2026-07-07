@@ -246,7 +246,11 @@
     paused;
     if (autoScroll && !paused && viewport) {
       requestAnimationFrame(() => {
-        viewport?.scrollTo({ top: viewport.scrollHeight });
+        if (!viewport) return;
+        const top = viewport.scrollHeight;
+        viewport.scrollTo({ top });
+        scrollTop = viewport.scrollTop;
+        viewportHeight = viewport.clientHeight;
       });
     }
   });
@@ -274,16 +278,74 @@
     system: "border-l-accent",
   };
 
+  function isObjectContinuation(row: FlatRow): boolean {
+    const text = stripAnsi(row.text).trimStart();
+    return (
+      text.startsWith('"') ||
+      text === "{" ||
+      text === "[" ||
+      text === "}" ||
+      text === "}," ||
+      text === "]" ||
+      text === "],"
+    );
+  }
+
+  function isStructuralOpener(text: string): boolean {
+    return text.endsWith("{") || text.endsWith("[");
+  }
+
+  function isStructuralCloser(text: string): boolean {
+    return text === "}" || text === "}," || text === "]" || text === "],";
+  }
+
+  function visualGroupIdForIndex(indexInLogs: number): number | string {
+    const row = filteredLogs[indexInLogs];
+    if (!row) return `missing-${indexInLogs}`;
+    if (row.isContinuation) return row.entryId;
+    if (!isObjectContinuation(row)) return row.entryId;
+
+    const rowText = stripAnsi(row.text).trim();
+    const rowIsOpener = isStructuralOpener(rowText);
+    let unmatchedClosers = isStructuralCloser(rowText) ? 1 : 0;
+
+    for (let i = indexInLogs - 1; i >= 0; i -= 1) {
+      const previous = filteredLogs[i];
+      if (!previous) break;
+      if (previous.stream !== row.stream) break;
+
+      const previousText = stripAnsi(previous.text).trim();
+      if (isStructuralCloser(previousText)) {
+        unmatchedClosers += 1;
+        continue;
+      }
+      if (isStructuralOpener(previousText)) {
+        if (unmatchedClosers === 0) {
+          return visualGroupIdForIndex(i);
+        }
+        unmatchedClosers -= 1;
+        if (!rowIsOpener && unmatchedClosers === 0) {
+          return visualGroupIdForIndex(i);
+        }
+        continue;
+      }
+      if (!isObjectContinuation(previous)) break;
+    }
+
+    return row.entryId;
+  }
+
   const borderCornerClass = $derived((indexInLogs: number): string => {
     const row = filteredLogs[indexInLogs];
     if (!row) return "";
+    const currentGroup = visualGroupIdForIndex(indexInLogs);
     const prev = indexInLogs > 0 ? filteredLogs[indexInLogs - 1] : null;
     const next =
       indexInLogs < filteredLogs.length - 1
         ? filteredLogs[indexInLogs + 1]
         : null;
-    const sameAsPrev = prev !== null && prev.entryId === row.entryId;
-    const sameAsNext = next !== null && next.entryId === row.entryId;
+    const sameAsPrev = prev !== null && visualGroupIdForIndex(indexInLogs - 1) === currentGroup;
+    const sameAsNext = next !== null && visualGroupIdForIndex(indexInLogs + 1) === currentGroup;
 
     if (!sameAsPrev && !sameAsNext) return "rounded-tl rounded-bl";
     if (!sameAsPrev) return "rounded-tl";
@@ -333,6 +395,7 @@
           <div
             style="position: absolute; top: {(startIndex + index) *
               ROW_HEIGHT}px; left: 0; right: 0; height: {ROW_HEIGHT}px;"
+            data-log-row="true"
             class="group flex items-center gap-3 px-3 border-l-[3px] {borderByStream[
               row.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(

@@ -11,7 +11,7 @@ use std::sync::{
 };
 
 use tauri::Manager;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::infrastructure::config_loader::{find_config_in_cwd_or_parents, load_config};
 use crate::tauri_api::state::AppState;
@@ -37,7 +37,7 @@ pub fn run() {
                 #[cfg(not(target_os = "macos"))]
                 {
                     if let Err(err) = window.set_decorations(false) {
-                        warn!(error = %err, "failed to disable window decorations");
+                        tracing::warn!(error = %err, "failed to disable window decorations");
                     }
                 }
 
