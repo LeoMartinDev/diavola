@@ -402,7 +402,16 @@ pub async fn open_project_window(
     #[cfg(target_os = "macos")]
     let win_builder = win_builder.title_bar_style(tauri::TitleBarStyle::Overlay);
 
-    win_builder.build().map_err(|error| error.to_string())?;
+    let project_window = win_builder.build().map_err(|error| error.to_string())?;
+
+    // Closing a project window must clean up its session/terminals, otherwise
+    // its supervised child processes are orphaned. The main window gets the
+    // same handler during setup in `lib::run`.
+    crate::application::window_lifecycle::register_window_close_handler(
+        app_handle,
+        state.inner().clone(),
+        &project_window,
+    );
 
     Ok(())
 }

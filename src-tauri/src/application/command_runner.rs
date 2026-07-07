@@ -4,13 +4,15 @@ use std::sync::Arc;
 
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
-    process::{Child, ChildStderr, ChildStdout},
+    process::{Child, ChildStderr, ChildStdout, Command},
 };
 
 use crate::{
     error::{AppError, ErrorCode},
-    infrastructure::shell::command_for_shell,
 };
+
+#[cfg(windows)]
+use crate::infrastructure::shell::command_for_shell;
 
 pub struct SpawnedProcess {
     pub child: Child,
@@ -25,7 +27,37 @@ pub fn spawn_process(
     current_dir: &Path,
     env: &HashMap<String, String>,
 ) -> Result<SpawnedProcess, AppError> {
+    // On Unix the command is launched indirectly through the watchdog (see
+    // `src/watchdog.rs`) so the whole process tree is guaranteed to die if
+    // Diavola is killed or crashes. On Windows the equivalent guarantee comes
+    // from Job Objects assigned below, so the command is launched directly.
+    #[cfg(unix)]
+    let mut command = {
+        use std::os::unix::process::CommandExt as _;
+
+        let exe = std::env::current_exe().map_err(|error| {
+            AppError::runtime_with_code(
+                format!("failed to resolve current exe for watchdog: {error}"),
+                ErrorCode::ProcessStartFailed,
+            )
+        })?;
+        let parent_pid = std::process::id();
+        let mut command = Command::new(exe);
+        command.arg("--diavola-watchdog");
+        command.arg("--parent-pid");
+        command.arg(parent_pid.to_string());
+        command.arg("--cmd");
+        command.arg(cmd);
+        // The watchdog becomes its own process-group leader; its `sh` child and
+        // all descendants stay in that group, so `kill(-watchdog_pid)` reaches
+        // the whole tree.
+        command.as_std_mut().arg0("diavola-watchdog");
+        command.as_std_mut().process_group(0);
+        command
+    };
+    #[cfg(windows)]
     let mut command = command_for_shell(cmd);
+
     command.current_dir(current_dir);
     command.envs(env.iter());
     command.stdin(std::process::Stdio::null());

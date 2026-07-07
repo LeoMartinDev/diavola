@@ -3,12 +3,10 @@ pub mod domain;
 pub mod error;
 pub mod infrastructure;
 pub mod tauri_api;
+#[cfg(unix)]
+pub mod watchdog;
 
 use std::path::PathBuf;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 
 use tauri::Manager;
 use tracing::{error, info};
@@ -31,8 +29,6 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            let closing = Arc::new(AtomicBool::new(false));
-
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(not(target_os = "macos"))]
                 {
@@ -54,35 +50,11 @@ pub fn run() {
 
                 let app_handle = app.handle().clone();
                 let state = app.state::<AppState>().inner().clone();
-                let closing_flag = closing.clone();
-                window.clone().on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        if closing_flag.load(Ordering::Acquire) {
-                            return;
-                        }
-                        closing_flag.store(true, Ordering::Release);
-                        api.prevent_close();
-                        let app_handle = app_handle.clone();
-                        let state = state.clone();
-                        let window_label = window.label().to_string();
-                        tauri::async_runtime::spawn(async move {
-                            let _ = state
-                                .orchestrator
-                                .force_stop_session(app_handle.clone(), &window_label)
-                                .await;
-                            let _ = state
-                                .terminal_manager
-                                .close_all_for_window(
-                                    app_handle.clone(),
-                                    &window_label,
-                                )
-                                .await;
-                            if let Some(w) = app_handle.get_webview_window(&window_label) {
-                                let _ = w.close();
-                            }
-                        });
-                    }
-                });
+                crate::application::window_lifecycle::register_window_close_handler(
+                    app_handle,
+                    state,
+                    &window,
+                );
             }
 
             let state = app.state::<AppState>().inner().clone();
@@ -243,10 +215,18 @@ async fn shutdown_signal_handler(app_handle: tauri::AppHandle, state: AppState) 
             tokio::signal::unix::SignalKind::interrupt(),
         )
         .expect("failed to install SIGINT handler");
+        // SIGHUP covers "the terminal / SSH session that launched Diavola was
+        // closed". Without it the app dies here and every supervised child —
+        // each in its own process group — survives as an orphan.
+        let mut sighup = tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::hangup(),
+        )
+        .expect("failed to install SIGHUP handler");
 
         tokio::select! {
             _ = sigterm.recv() => {}
             _ = sigint.recv() => {}
+            _ = sighup.recv() => {}
         }
     }
     #[cfg(not(unix))]
