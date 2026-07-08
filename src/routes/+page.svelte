@@ -188,6 +188,7 @@
             <LogViewer
               logs={runtimeStore.logsForSelectedProcess()}
               processName={selectedProcess?.name ?? null}
+              runtimeId={runtimeStore.selectedProcessRuntimeId}
               truncatedCount={runtimeStore.truncatedLogCountForSelectedProcess()}
               onClear={() => runtimeStore.clearSelectedProcessLogs()}
               onActions={(actions) => (runtimeStore.logActions = actions)}

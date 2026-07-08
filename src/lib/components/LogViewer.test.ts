@@ -48,8 +48,8 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 }
 
 describe("LogViewer search", () => {
-  it("filters lines by a substring query (case-insensitive)", async () => {
-    const { container, queryByText } = render(LogViewer, {
+  it("keeps all rows rendered and highlights matches (no filtering)", async () => {
+    const { container } = render(LogViewer, {
       props: makeProps({
         logs: logs(["listening on 3000", "worker ready", "listening on 3001"]),
       }),
@@ -57,10 +57,13 @@ describe("LogViewer search", () => {
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
     input.value = "LISTENING";
     await fireEvent.input(input);
-    expect(queryByText(/worker ready/)).toBeNull();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(container.textContent).toContain("worker ready");
+    const marks = container.querySelectorAll("mark");
+    expect(marks.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("treats the query as regex when regex mode is on", async () => {
+  it("highlights regex matches without hiding non-matches", async () => {
     const { container } = render(LogViewer, {
       props: makeProps({ logs: logs(["error 42", "warn 7", "error 99"]) }),
     });
@@ -68,8 +71,9 @@ describe("LogViewer search", () => {
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
     input.value = "error \\d+";
     await fireEvent.input(input);
-    expect(container.textContent).toMatch(/error 42/);
-    expect(container.textContent).not.toMatch(/warn 7/);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(container.textContent).toContain("warn 7");
+    expect(container.querySelectorAll("mark").length).toBe(2);
   });
 
   it("shows the error popover and disables nav on an invalid regex", async () => {
@@ -81,6 +85,7 @@ describe("LogViewer search", () => {
     input.value = "(unclosed";
     await fireEvent.input(input);
     await fireEvent.focus(input);
+    await new Promise((r) => setTimeout(r, 100));
     expect(getByText(/Unterminated|Invalid|regular expression/i)).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Next match"]')).toBeDisabled();
   });
@@ -97,6 +102,7 @@ describe("LogViewer search", () => {
     const input = container.querySelector<HTMLInputElement>(".log-search")!;
     input.value = "one";
     await fireEvent.input(input);
+    await new Promise((r) => setTimeout(r, 100));
     expect(counter()).toBe("1/3");
 
     await fireEvent.keyDown(input, { key: "Enter" });

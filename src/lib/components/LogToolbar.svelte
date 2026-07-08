@@ -71,48 +71,46 @@
     {/if}
   </div>
 
-  {#if showNav}
-    <div
-      class="flex shrink-0 items-center gap-0.5"
-      role="group"
-      aria-label="Match navigation"
+  <div
+    class="flex shrink-0 items-center gap-0.5 {showNav ? '' : 'invisible pointer-events-none'}"
+    role="group"
+    aria-label="Match navigation"
+  >
+    <button
+      type="button"
+      tabindex="-1"
+      disabled={navDisabled}
+      onclick={onPrev}
+      class="grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:opacity-55"
+      aria-label="Previous match"
+      title="Previous match (Shift+Enter)"
     >
-      <button
-        type="button"
-        tabindex="-1"
-        disabled={navDisabled}
-        onclick={onPrev}
-        class="grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:opacity-55"
-        aria-label="Previous match"
-        title="Previous match (Shift+Enter)"
-      >
-        <Icon name="back" size="xs" />
-      </button>
-      <span
-        class="min-w-[34px] text-center text-[10px] tabular-nums text-text-subtle"
-        aria-label="Match count"
-      >
-        {#if regexError}
-          <span class="inline-flex text-danger" title={regexError}>
-            <Icon name="error" size="xs" />
-          </span>
-        {:else}
-          {activeMatchNumber}/{matchTotal}
-        {/if}
-      </span>
-      <button
-        type="button"
-        tabindex="-1"
-        disabled={navDisabled}
-        onclick={onNext}
-        class="grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:opacity-55"
-        aria-label="Next match"
-        title="Next match (Enter)"
-      >
-        <Icon name="chevron-right" size="xs" />
-      </button>
-    </div>
-  {/if}
+      <Icon name="back" size="xs" />
+    </button>
+    <span
+      class="min-w-[34px] text-center text-[10px] tabular-nums text-text-subtle"
+      aria-label="Match count"
+    >
+      {#if regexError}
+        <span class="inline-flex text-danger" title={regexError}>
+          <Icon name="error" size="xs" />
+        </span>
+      {:else}
+        {activeMatchNumber}/{matchTotal ?? 0}
+      {/if}
+    </span>
+    <button
+      type="button"
+      tabindex="-1"
+      disabled={navDisabled}
+      onclick={onNext}
+      class="grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:opacity-55"
+      aria-label="Next match"
+      title="Next match (Enter)"
+    >
+      <Icon name="chevron-right" size="xs" />
+    </button>
+  </div>
 
   <div
     class="flex shrink-0 items-center gap-0.5"

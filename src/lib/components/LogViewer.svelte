@@ -1,14 +1,15 @@
 <script lang="ts">
   import { MAX_LOG_LINES_PER_PROCESS } from "$lib/stores/runtime.svelte";
-  import type { FlatRow, ProcessLogPayload } from "$lib/types";
+  import type { FlatRow } from "$lib/types";
   import { isTypingTarget } from "$lib/utils/dom";
   import { computeVirtualScroll, isAtBottom } from "$lib/utils/virtualScroll";
   import {
     buildMatcher,
     highlightLine,
-    lineMatches,
     type SearchOptions,
   } from "$lib/utils/searchHighlight";
+  import { computeMatchIndices } from "$lib/utils/logSearch";
+  import { debounceWithMaxWait } from "$lib/utils/scheduler";
   import { parseAnsi, stripAnsi, styleToCss } from "$lib/utils/ansi";
   import Icon from "$lib/components/ui/Icon.svelte";
   import LogToolbar from "$lib/components/LogToolbar.svelte";
@@ -16,12 +17,13 @@
   type Props = {
     logs: FlatRow[];
     processName: string | null;
+    runtimeId?: string | null;
     truncatedCount: number;
     onClear: () => void;
     onActions?: (actions: { copy: () => void; clear: () => void }) => void;
   };
 
-  let { logs, processName, truncatedCount, onClear, onActions }: Props =
+  let { logs, processName, runtimeId = null, truncatedCount, onClear, onActions }: Props =
     $props();
 
   const ROW_HEIGHT = 22;
@@ -71,41 +73,35 @@
   const matcher = $derived(buildMatcher(query, searchOptions));
   const regexError = $derived(matcher && "error" in matcher ? matcher.error : null);
 
-  let filteredLogs = $derived.by(() => {
-    const base = paused ? (pausedLogs ?? logs) : logs;
-    if (matcher === null || "error" in matcher) return base;
-    return base.filter((row) => lineMatches(matcher, `${row.stream} ${stripAnsi(row.text)}`));
-  });
+  const virtualScroll = $derived(
+    computeVirtualScroll(scrollTop, viewportHeight, visibleLogs.length),
+  );
+  const totalHeight = $derived(virtualScroll.totalHeight);
+  const startIndex = $derived(virtualScroll.startIndex);
+  const endIndex = $derived(virtualScroll.endIndex);
+  const visibleItems = $derived(visibleLogs.slice(startIndex, endIndex));
 
+  let matchRowIndices = $state<number[]>([]);
   let activeMatchIndex = $state(0);
 
-  $effect(() => {
-    void `${query}|${searchOptions.regex}|${searchOptions.caseSensitive}`;
-    activeMatchIndex = 0;
-  });
-
-  $effect(() => {
-    const max = Math.max(0, filteredLogs.length - 1);
-    if (activeMatchIndex > max) activeMatchIndex = max;
-  });
-
   const matcherActive = $derived(matcher !== null && "regex" in matcher);
-  const matchTotal = $derived(
-    matcher === null ? null : matcherActive ? filteredLogs.length : 0,
-  );
+  const matchTotal = $derived(matcher === null ? null : matchRowIndices.length);
   const activeMatchNumber = $derived(activeMatchIndex + 1);
+  const activeMatchRow = $derived(
+    matchRowIndices.length > 0 ? matchRowIndices[activeMatchIndex] : -1,
+  );
 
   function scrollToActiveMatch() {
-    if (!viewport) return;
-    const top = activeMatchIndex * ROW_HEIGHT - (viewportHeight - ROW_HEIGHT) / 2;
+    if (!viewport || activeMatchRow < 0) return;
+    const top = activeMatchRow * ROW_HEIGHT - (viewportHeight - ROW_HEIGHT) / 2;
     const maxScroll = totalHeight - viewportHeight;
     viewport.scrollTo({ top: Math.max(0, Math.min(top, maxScroll)) });
   }
 
   function goToMatch(next: number) {
-    const len = filteredLogs.length;
+    const len = matchRowIndices.length;
     if (len === 0) return;
-    activeMatchIndex = (next % len + len) % len;
+    activeMatchIndex = ((next % len) + len) % len;
     autoScroll = false;
     scrollToActiveMatch();
   }
@@ -118,14 +114,46 @@
     goToMatch(activeMatchIndex - 1);
   }
 
-  const virtualScroll = $derived(
-    computeVirtualScroll(scrollTop, viewportHeight, filteredLogs.length),
-  );
-  const totalHeight = $derived(virtualScroll.totalHeight);
-  const startIndex = $derived(virtualScroll.startIndex);
-  const endIndex = $derived(virtualScroll.endIndex);
+  let searchGeneration = 0;
+  const searchScheduler = debounceWithMaxWait(refreshMatches, 80, 250);
 
-  const visibleItems = $derived(filteredLogs.slice(startIndex, endIndex));
+  async function refreshMatches() {
+    const m = matcher;
+    if (m === null || "error" in m) {
+      matchRowIndices = [];
+      return;
+    }
+    const generation = ++searchGeneration;
+    const indices = await computeMatchIndices({
+      logs: visibleLogs,
+      matcher: m,
+      query,
+      options: searchOptions,
+      runtimeId: runtimeId ?? null,
+      paused,
+    });
+    if (generation !== searchGeneration) return;
+    matchRowIndices = indices;
+    if (activeMatchIndex > indices.length - 1) {
+      activeMatchIndex = Math.max(0, indices.length - 1);
+    }
+  }
+
+  let lastQuerySig = "";
+  $effect(() => {
+    void query;
+    void searchOptions.regex;
+    void searchOptions.caseSensitive;
+    void runtimeId;
+    void paused;
+    void visibleLogs.length;
+    const sig = `${query}|${searchOptions.regex}|${searchOptions.caseSensitive}`;
+    if (sig !== lastQuerySig) {
+      lastQuerySig = sig;
+      activeMatchIndex = 0;
+    }
+    searchScheduler.schedule();
+  });
 
   function togglePaused() {
     paused = !paused;
@@ -144,7 +172,7 @@
   });
 
   async function copyLogs() {
-    const text = filteredLogs
+    const text = visibleLogs
       .map(
         (row) =>
           `${row.timestamp ? new Date(row.timestamp).toLocaleTimeString() + ' ' : ''}${row.stream} ${stripAnsi(row.text)}`,
@@ -169,7 +197,7 @@
   let entryCopyTimer = $state<number | null>(null);
 
   async function copyEntry(entryId: number) {
-    const entryLines = filteredLogs
+    const entryLines = visibleLogs
       .filter((row) => row.entryId === entryId)
       .map((row) => stripAnsi(row.text));
     const text = entryLines.join("\n");
@@ -203,7 +231,7 @@
         (event.target as HTMLElement)?.blur();
       }
     }
-    if (typing && event.key === "Enter" && matcherActive && filteredLogs.length > 0) {
+    if (typing && event.key === "Enter" && matcherActive && matchRowIndices.length > 0) {
       event.preventDefault();
       if (event.shiftKey) prevMatch();
       else nextMatch();
@@ -238,10 +266,12 @@
     autoScroll = true;
     scrollTop = 0;
     activeMatchIndex = 0;
+    matchRowIndices = [];
+    searchScheduler.cancel();
   });
 
   $effect(() => {
-    filteredLogs.length;
+    visibleLogs.length;
     autoScroll;
     paused;
     if (autoScroll && !paused && viewport) {
@@ -257,6 +287,7 @@
 
   $effect(() => {
     return () => {
+      searchScheduler.cancel();
       if (copyTimer !== null) {
         clearTimeout(copyTimer);
       }
@@ -302,7 +333,7 @@
   }
 
   function visualGroupIdForIndex(indexInLogs: number): number | string {
-    const row = filteredLogs[indexInLogs];
+    const row = visibleLogs[indexInLogs];
     if (!row) return `missing-${indexInLogs}`;
     if (row.isContinuation) return row.entryId;
     if (!isObjectContinuation(row)) return row.entryId;
@@ -312,7 +343,7 @@
     let unmatchedClosers = isStructuralCloser(rowText) ? 1 : 0;
 
     for (let i = indexInLogs - 1; i >= 0; i -= 1) {
-      const previous = filteredLogs[i];
+      const previous = visibleLogs[i];
       if (!previous) break;
       if (previous.stream !== row.stream) break;
 
@@ -338,13 +369,13 @@
   }
 
   const borderCornerClass = $derived((indexInLogs: number): string => {
-    const row = filteredLogs[indexInLogs];
+    const row = visibleLogs[indexInLogs];
     if (!row) return "";
     const currentGroup = visualGroupIdForIndex(indexInLogs);
-    const prev = indexInLogs > 0 ? filteredLogs[indexInLogs - 1] : null;
+    const prev = indexInLogs > 0 ? visibleLogs[indexInLogs - 1] : null;
     const next =
-      indexInLogs < filteredLogs.length - 1
-        ? filteredLogs[indexInLogs + 1]
+      indexInLogs < visibleLogs.length - 1
+        ? visibleLogs[indexInLogs + 1]
         : null;
     const sameAsPrev = prev !== null && visualGroupIdForIndex(indexInLogs - 1) === currentGroup;
     const sameAsNext = next !== null && visualGroupIdForIndex(indexInLogs + 1) === currentGroup;
@@ -387,10 +418,8 @@
     data-native-selectable="logs"
     class="min-h-0 flex-1 overflow-auto font-mono text-[12px] leading-[1.45]"
   >
-    {#if filteredLogs.length === 0}
-      <div class="px-3 py-2 text-text-subtle">
-        {query ? "No matching lines" : "No log line"}
-      </div>
+    {#if visibleLogs.length === 0}
+        <div class="px-3 py-2 text-text-subtle">No log line</div>
     {:else}
       <div style="height: {totalHeight}px; position: relative;">
         {#each visibleItems as row, index (`${row.entryId}-${row.lineIndex}-${startIndex + index}`)}
@@ -402,7 +431,7 @@
               row.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(
               startIndex + index,
-            )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {startIndex + index === activeMatchIndex && matcherActive ? 'bg-surface-hover/60' : ''}"
+            )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {startIndex + index === activeMatchRow && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
             <span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-text-subtle w-[70px] select-none">
               {#if row.isFirstLine}
@@ -428,7 +457,7 @@
                   {#each highlightLine(ansiSeg.text, matcher) as seg}
                     {#if seg.match}
                       <mark
-                        class={`text-text rounded-[2px] ${startIndex + index === activeMatchIndex && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
+                        class={`text-text rounded-[2px] ${startIndex + index === activeMatchRow && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
                         >{seg.text}</mark
                       >
                     {:else}

@@ -22,10 +22,11 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 }
 
 describe("LogToolbar", () => {
-  it("hides the nav group when matchTotal is null (empty query)", () => {
-    const { queryByRole } = render(LogToolbar, { props: makeProps() });
-    expect(queryByRole("button", { name: "Next match" })).toBeNull();
-    expect(queryByRole("button", { name: "Previous match" })).toBeNull();
+  it("keeps the nav group mounted but hidden when matchTotal is null", () => {
+    const { getByRole } = render(LogToolbar, { props: makeProps() });
+    const navGroup = getByRole("group", { name: "Match navigation" });
+    expect(navGroup.className).toContain("invisible");
+    expect(navGroup.className).toContain("pointer-events-none");
   });
 
   it("renders the counter as active/total", () => {
