@@ -34,6 +34,10 @@ env:                 # optional — shared env vars
   NODE_ENV: development
   DATABASE_URL: postgres://localhost:5432/myproject
 
+gracePeriodMs: 10000 # optional — global graceful shutdown timeout (default: 10000)
+
+logTimestampPattern: "\\[\\d{2}:\\d{2}:\\d{2}\\]"  # optional — regex for log line grouping
+
 processes:           # required — at least one process
   <name>:
     kind: task | service              # required
@@ -45,6 +49,8 @@ processes:           # required — at least one process
     ready:                            # optional (services only)
       type: log | http | delay | command
       # ... type-specific fields
+    gracePeriodMs: 5000               # optional — overrides global
+    logTimestampPattern: "\\[.*\\]"   # optional — overrides global
 ```
 
 ### Process Kinds
@@ -53,6 +59,45 @@ processes:           # required — at least one process
 |------|----------|
 | `task` | Runs a command that finishes on its own (install, migrate, compile). Diavola waits for it to exit. If it fails (non-zero exit), everything stops. |
 | `service` | Runs a long-lived process (server, worker). Diavola starts it and monitors its readiness. If it stops unexpectedly, everything stops. |
+
+### Graceful Shutdown (`gracePeriodMs`)
+
+When you stop the app, Diavola sends each process a termination signal
+(SIGTERM/Ctrl+Break) and waits for it to exit. If the process hasn't finished
+after `gracePeriodMs`, it gets force-killed. Minimum value is 1000 ms.
+
+Set it globally (applies to all processes) or per-process (overrides global).
+
+```yaml
+gracePeriodMs: 15000   # global — wait 15s before force-kill
+
+processes:
+  api:
+    kind: service
+    cmd: npm run dev
+    gracePeriodMs: 5000   # per-process override
+```
+
+### Log Line Grouping (`logTimestampPattern`)
+
+By default, every output line is treated as a standalone log entry. If your
+processes emit structured logs with timestamps (e.g. `[12:00:01] INFO  ...`),
+you can provide a regex pattern that matches the start of a new log entry.
+Lines that don't match the pattern are visually grouped as continuations of the
+previous entry.
+
+Set it globally or per-process (per-process overrides global). If the regex is
+invalid, a warning is logged and all lines are treated as standalone entries.
+
+```yaml
+logTimestampPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"  # global — regex for log grouping
+
+processes:
+  worker:
+    kind: service
+    cmd: npm run worker
+    logTimestampPattern: "\\d{4}-\\d{2}-\\d{2}T"    # per-process override (ISO dates)
+```
 
 ### Dependencies (`dependsOn`)
 
