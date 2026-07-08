@@ -117,7 +117,7 @@ mod tests {
                 depends_on: IndexMap::new(),
                 ready: None,
                 grace_period_ms: None,
-                log_timestamp_pattern: None,
+                log_entry_pattern: None,
             },
             snapshot: ProcessSnapshot {
                 runtime_id: ProcessRuntimeId::new(),

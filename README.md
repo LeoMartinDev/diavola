@@ -36,7 +36,7 @@ env:                 # optional — shared env vars
 
 gracePeriodMs: 10000 # optional — global graceful shutdown timeout (default: 10000)
 
-logTimestampPattern: "\\[\\d{2}:\\d{2}:\\d{2}\\]"  # optional — regex for log line grouping
+logEntryPattern: "\\[\\d{2}:\\d{2}:\\d{2}\\]"  # optional — regex matching start of a new log entry
 
 processes:           # required — at least one process
   <name>:
@@ -50,7 +50,7 @@ processes:           # required — at least one process
       type: log | http | delay | command
       # ... type-specific fields
     gracePeriodMs: 5000               # optional — overrides global
-    logTimestampPattern: "\\[.*\\]"   # optional — overrides global
+    logEntryPattern: "\\[.*\\]"   # optional — overrides global
 ```
 
 ### Process Kinds
@@ -78,25 +78,24 @@ processes:
     gracePeriodMs: 5000   # per-process override
 ```
 
-### Log Line Grouping (`logTimestampPattern`)
+### Log Entry Grouping (`logEntryPattern`)
 
-By default, every output line is treated as a standalone log entry. If your
-processes emit structured logs with timestamps (e.g. `[12:00:01] INFO  ...`),
-you can provide a regex pattern that matches the start of a new log entry.
-Lines that don't match the pattern are visually grouped as continuations of the
-previous entry.
+By default, every output line is treated as a standalone log entry. You can
+provide a regex pattern that matches the start of a new log entry (e.g. a
+timestamp, a log level prefix, a process tag). Lines that don't match
+the pattern are visually grouped as continuations of the previous entry.
 
 Set it globally or per-process (per-process overrides global). If the regex is
 invalid, a warning is logged and all lines are treated as standalone entries.
 
 ```yaml
-logTimestampPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"  # global — regex for log grouping
+logEntryPattern: "^(ERROR|WARN|INFO|DEBUG|TRACE)\\b"  # global — regex for log grouping
 
 processes:
   worker:
     kind: service
     cmd: npm run worker
-    logTimestampPattern: "\\d{4}-\\d{2}-\\d{2}T"    # per-process override (ISO dates)
+    logEntryPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"    # per-process override (timestamp prefix)
 ```
 
 ### Dependencies (`dependsOn`)

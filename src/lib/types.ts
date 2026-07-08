@@ -41,13 +41,13 @@ export type ProcessConfig = {
   dependsOn: Record<string, DependencyCondition>;
   ready?: ReadyConfig;
   gracePeriodMs?: number;
-  logTimestampPattern?: string;
+  logEntryPattern?: string;
 };
 
 export type DiavolaConfig = {
   env?: Record<string, string>;
   gracePeriodMs?: number;
-  logTimestampPattern?: string;
+  logEntryPattern?: string;
   processes: Record<string, ProcessConfig>;
 };
 

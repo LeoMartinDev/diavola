@@ -30,7 +30,7 @@ processes:
 
   multi-line-demo:
     kind: service
-    logTimestampPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"
+    logEntryPattern: "^\\[\\d{2}:\\d{2}:\\d{2}\\]"
     cmd: |
       deno eval '
       setTimeout(() => {

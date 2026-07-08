@@ -36,13 +36,13 @@ export type ProcessForm = {
   intervalMs: number | string | null;
   timeoutMs: number | string | null;
   gracePeriodMs: number | string | null;
-  logTimestampPattern: string;
+  logEntryPattern: string;
 };
 
 export type ConfigFormState = {
   globalEnvRows: EnvRow[];
   globalGracePeriodMs: number | string | null;
-  globalLogTimestampPattern: string;
+  globalLogEntryPattern: string;
   processes: ProcessForm[];
 };
 
@@ -70,7 +70,7 @@ export function createProcess(name = "api", nextId: IdFactory = defaultNextId): 
     intervalMs: null,
     timeoutMs: 60000,
     gracePeriodMs: null,
-    logTimestampPattern: "",
+    logEntryPattern: "",
   };
 }
 
@@ -109,7 +109,7 @@ export function toProcessForm(
         ? (ready.timeoutMs ?? null)
         : null,
     gracePeriodMs: config.gracePeriodMs ?? null,
-    logTimestampPattern: config.logTimestampPattern ?? "",
+    logEntryPattern: config.logEntryPattern ?? "",
   };
 }
 
@@ -129,7 +129,7 @@ export function buildConfig(form: ConfigFormState): DiavolaConfig {
   return {
     env: Object.keys(globalEnv).length > 0 ? globalEnv : undefined,
     gracePeriodMs: globalGracePeriodMs,
-    logTimestampPattern: form.globalLogTimestampPattern || undefined,
+    logEntryPattern: form.globalLogEntryPattern || undefined,
     processes: Object.fromEntries(processEntries),
   };
 }
@@ -155,7 +155,7 @@ export function buildProcessConfig(process: ProcessForm): ProcessConfig {
     ),
     ready: process.readyEnabled ? buildReadyConfig(process) : undefined,
     gracePeriodMs,
-    logTimestampPattern: process.logTimestampPattern || undefined,
+    logEntryPattern: process.logEntryPattern || undefined,
   };
 }
 
@@ -233,8 +233,8 @@ export function serializeConfig(config: DiavolaConfig) {
   if (config.gracePeriodMs !== undefined && config.gracePeriodMs !== null) {
     lines.push(`gracePeriodMs: ${config.gracePeriodMs}`);
   }
-  if (config.logTimestampPattern) {
-    lines.push(`logTimestampPattern: ${yamlScalar(config.logTimestampPattern)}`);
+  if (config.logEntryPattern) {
+    lines.push(`logEntryPattern: ${yamlScalar(config.logEntryPattern)}`);
   }
   lines.push("processes:");
   for (const [name, process] of Object.entries(config.processes)) {
@@ -262,8 +262,8 @@ export function serializeConfig(config: DiavolaConfig) {
     if (process.gracePeriodMs !== undefined && process.gracePeriodMs !== null) {
       lines.push(`    gracePeriodMs: ${process.gracePeriodMs}`);
     }
-    if (process.logTimestampPattern) {
-      lines.push(`    logTimestampPattern: ${yamlScalar(process.logTimestampPattern)}`);
+    if (process.logEntryPattern) {
+      lines.push(`    logEntryPattern: ${yamlScalar(process.logEntryPattern)}`);
     }
     if (process.ready) {
       lines.push("    ready:");
