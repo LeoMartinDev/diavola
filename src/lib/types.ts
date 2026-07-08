@@ -126,6 +126,11 @@ export type ProcessLogPayload = {
   timestamp: string;
 };
 
+export type SearchProcessLogsReply = {
+  matchCount: number;
+  matchIndices: number[];
+};
+
 export type FlatRow = {
   entryId: number;
   lineIndex: number;

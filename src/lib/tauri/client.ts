@@ -6,7 +6,9 @@ import type {
   ProjectConfigDocument,
   ProjectId,
   ProjectRecord,
+  ProcessRuntimeId,
   RunSessionSnapshot,
+  SearchProcessLogsReply,
   TerminalSnapshot,
 } from "$lib/types";
 
@@ -127,6 +129,16 @@ export async function closeTerminal(terminalId: string): Promise<TerminalSnapsho
 
 export async function getGitInfo(baseDir: string): Promise<GitInfo> {
   return invoke<GitInfo>("get_git_info", { baseDir });
+}
+
+export async function searchProcessLogs(request: {
+  runtimeId: ProcessRuntimeId;
+  query: string;
+  regex: boolean;
+  caseSensitive: boolean;
+  upTo: number;
+}): Promise<SearchProcessLogsReply> {
+  return invoke<SearchProcessLogsReply>("search_process_logs", { request });
 }
 
 export function setWindowTitle(title: string): Promise<void> {
