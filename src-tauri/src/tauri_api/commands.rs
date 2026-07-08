@@ -5,13 +5,14 @@ use crate::{
     domain::{
         config::DiavolaConfig,
         project::{ProjectId, ProjectRecord},
-        runtime::RunSessionSnapshot,
+        runtime::{ProcessRuntimeId, RunSessionSnapshot},
         terminal::{TerminalSessionId, TerminalSnapshot},
     },
     error::{AppError, ErrorCode},
     infrastructure::{
         config_loader::{load_config_async, parse_config_document},
         git_info::{self, GitInfo},
+        log_store::SearchMatches,
     },
     tauri_api::state::AppState,
 };
@@ -87,6 +88,32 @@ pub struct ResizeTerminalRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CloseTerminalRequest {
     pub terminal_id: TerminalSessionId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchProcessLogsRequest {
+    pub runtime_id: ProcessRuntimeId,
+    pub query: String,
+    pub regex: bool,
+    pub case_sensitive: bool,
+    pub up_to: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchProcessLogsReply {
+    pub match_count: usize,
+    pub match_indices: Vec<u32>,
+}
+
+impl From<SearchMatches> for SearchProcessLogsReply {
+    fn from(m: SearchMatches) -> Self {
+        Self {
+            match_count: m.match_count,
+            match_indices: m.match_indices,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -288,6 +315,27 @@ pub async fn get_session_snapshot(
         .orchestrator
         .snapshot(&window_key(&window))
         .await
+        .map_err(to_error_string)
+}
+
+#[tauri::command]
+pub async fn search_process_logs(
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    request: SearchProcessLogsRequest,
+) -> Result<SearchProcessLogsReply, String> {
+    state
+        .orchestrator
+        .search_logs(
+            &window_key(&window),
+            &request.runtime_id,
+            &request.query,
+            request.regex,
+            request.case_sensitive,
+            request.up_to,
+        )
+        .await
+        .map(SearchProcessLogsReply::from)
         .map_err(to_error_string)
 }
 

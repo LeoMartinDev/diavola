@@ -23,7 +23,7 @@ use crate::{
         config::{ProcessConfig, ProcessKind},
         process::{LogStream, ProcessStatus},
         project::ProjectRecord,
-        runtime::{ProcessLogPayload, ProcessSnapshot, RunSessionSnapshot},
+        runtime::{ProcessLogPayload, ProcessRuntimeId, ProcessSnapshot, RunSessionSnapshot},
     },
     error::AppError,
     infrastructure::config_loader::LoadedProjectConfig,
@@ -235,6 +235,22 @@ impl ProcessOrchestrator {
             .sessions
             .get(window_key)
             .map(|active| (*active.snapshot).clone()))
+    }
+
+    pub async fn search_logs(
+        &self,
+        window_key: &str,
+        runtime_id: &ProcessRuntimeId,
+        query: &str,
+        regex: bool,
+        case_sensitive: bool,
+        up_to: usize,
+    ) -> Result<crate::infrastructure::log_store::SearchMatches, AppError> {
+        let state = self.inner.lock().await;
+        let Some(active) = state.sessions.get(window_key) else {
+            return Ok(crate::infrastructure::log_store::SearchMatches::default());
+        };
+        active.logs.search(runtime_id, query, regex, case_sensitive, up_to)
     }
 
     /// Returns true if any window has a project session that has not stopped

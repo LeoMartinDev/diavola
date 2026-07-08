@@ -142,6 +142,7 @@ pub fn run() {
             tauri_api::commands::start_process,
             tauri_api::commands::stop_process,
             tauri_api::commands::get_session_snapshot,
+            tauri_api::commands::search_process_logs,
             tauri_api::commands::has_active_sessions,
             tauri_api::commands::open_terminal,
             tauri_api::commands::write_terminal,
