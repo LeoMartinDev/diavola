@@ -26,7 +26,7 @@ use crate::{
         runtime::{ProcessLogPayload, ProcessSnapshot, RunSessionSnapshot},
     },
     error::AppError,
-    infrastructure::{config_loader::LoadedProjectConfig, log_store::LogStore},
+    infrastructure::config_loader::LoadedProjectConfig,
 };
 
 use session::{ActiveSession, OrchestratorState};
@@ -413,7 +413,7 @@ impl ProcessOrchestrator {
                 Box::pin(async move {
                     let mut state = inner.lock().await;
                     if let Some(active) = state.sessions.get_mut(&wk) {
-                        active.logs.append(payload);
+                        active.logs.append(&payload);
                     }
                 })
             };
@@ -440,7 +440,7 @@ impl ProcessOrchestrator {
                 Box::pin(async move {
                     let mut state = inner.lock().await;
                     if let Some(active) = state.sessions.get_mut(&wk) {
-                        active.logs.append(payload);
+                        active.logs.append(&payload);
                     }
                 })
             };

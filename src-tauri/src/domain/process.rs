@@ -21,3 +21,13 @@ pub enum LogStream {
     Stderr,
     System,
 }
+
+impl LogStream {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LogStream::Stdout => "stdout",
+            LogStream::Stderr => "stderr",
+            LogStream::System => "system",
+        }
+    }
+}
