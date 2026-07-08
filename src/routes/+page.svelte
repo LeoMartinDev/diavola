@@ -2,10 +2,8 @@
   import { onMount } from "svelte";
 
   import AppShell from "$lib/components/AppShell.svelte";
-  import ConfigEditor from "$lib/components/ConfigEditor.svelte";
   import LogViewer from "$lib/components/LogViewer.svelte";
   import SidebarRuntime from "$lib/components/SidebarRuntime.svelte";
-  import TerminalPane from "$lib/components/TerminalPane.svelte";
   import TitleBar from "$lib/components/TitleBar.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Toast from "$lib/components/ui/Toast.svelte";
@@ -111,6 +109,13 @@
   onMount(() => {
     void runtimeStore.init();
 
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        import("$lib/components/ConfigEditor.svelte");
+        import("$lib/components/TerminalPane.svelte");
+      });
+    });
+
     const onOpenConfig = () => openConfigDialog();
 
     document.addEventListener("diavola:open-config-dialog", onOpenConfig);
@@ -155,26 +160,30 @@
   <main class="flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-canvas text-text">
     {@render titleBar()}
     <div class="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-surface mx-2 mb-2">
-      <ConfigEditor
-        open={configOpen}
-        {project}
-        onClose={() => {
-          configOpen = false;
-        }}
-      />
+      {#await import("$lib/components/ConfigEditor.svelte") then { default: ConfigEditor }}
+        <ConfigEditor
+          open={configOpen}
+          {project}
+          onClose={() => {
+            configOpen = false;
+          }}
+        />
+      {/await}
     </div>
     <Toast />
   </main>
 {:else}
   <AppShell {titleBar} {processList}>
             {#if selection?.kind === "terminal" && selectedTerminal}
-              <TerminalPane
-                terminalId={selectedTerminal.terminalId}
-                output={runtimeStore.terminalOutput[selectedTerminal.terminalId] ?? ""}
-                onInput={(data) => runtimeStore.writeToTerminal(data)}
-                onResize={(cols, rows) => runtimeStore.resizeSelectedTerminal(cols, rows)}
-                onOpenTerminal={openTerminal}
-              />
+              {#await import("$lib/components/TerminalPane.svelte") then { default: TerminalPane }}
+                <TerminalPane
+                  terminalId={selectedTerminal.terminalId}
+                  output={runtimeStore.terminalOutput[selectedTerminal.terminalId] ?? ""}
+                  onInput={(data) => runtimeStore.writeToTerminal(data)}
+                  onResize={(cols, rows) => runtimeStore.resizeSelectedTerminal(cols, rows)}
+                  onOpenTerminal={openTerminal}
+                />
+              {/await}
           {:else if selection?.kind === "process" && session}
             <LogViewer
               logs={runtimeStore.logsForSelectedProcess()}
