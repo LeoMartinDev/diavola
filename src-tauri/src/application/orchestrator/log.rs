@@ -1,10 +1,11 @@
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use chrono::Utc;
 use tauri::{AppHandle, Emitter};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::broadcast,
+    time::timeout,
 };
 
 use crate::{
@@ -32,7 +33,29 @@ where
     let mut buffer: Vec<String> = Vec::new();
     let mut first_timestamp: Option<chrono::DateTime<Utc>> = None;
 
-    while let Some(line) = lines_reader.next_line().await? {
+    const IDLE_FLUSH_MS: u64 = 100;
+
+    loop {
+        let line = match timeout(Duration::from_millis(IDLE_FLUSH_MS), lines_reader.next_line()).await {
+            Ok(Ok(Some(line))) => line,
+            Ok(Ok(None)) => break,
+            Ok(Err(e)) => return Err(e),
+            Err(_elapsed) => {
+                if !buffer.is_empty() {
+                    let payload = ProcessLogPayload {
+                        session_id: session_id.clone(),
+                        runtime_id: runtime_id.clone(),
+                        process_name: process_name.to_string(),
+                        stream,
+                        lines: std::mem::take(&mut buffer),
+                        timestamp: first_timestamp.take().unwrap_or_else(Utc::now),
+                    };
+                    append_line_fn(payload).await;
+                }
+                continue;
+            }
+        };
+
         let is_new_entry = entry_pattern
             .as_ref()
             .map(|re| re.is_match(&line))
@@ -51,6 +74,18 @@ where
         }
 
         if is_new_entry {
+            if entry_pattern.is_none() {
+                let payload = ProcessLogPayload {
+                    session_id: session_id.clone(),
+                    runtime_id: runtime_id.clone(),
+                    process_name: process_name.to_string(),
+                    stream,
+                    lines: vec![line],
+                    timestamp: Utc::now(),
+                };
+                append_line_fn(payload).await;
+                continue;
+            }
             first_timestamp = Some(Utc::now());
         } else if first_timestamp.is_none() {
             first_timestamp = Some(Utc::now());
