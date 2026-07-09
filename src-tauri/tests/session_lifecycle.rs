@@ -163,14 +163,13 @@ processes:
     target_os = "linux",
     ignore = "Tauri GTK event loop requires a main thread on Linux"
 )]
-async fn stop_sends_sigterm_and_honors_graceful_exit() {
+async fn stop_kills_process_immediately() {
     let dir = tempfile::tempdir().expect("create temp dir");
     let yaml = r#"
 processes:
   polite:
     kind: service
     cmd: sh -c "trap 'exit 0' TERM; sleep 60"
-    gracePeriodMs: 5000
     ready:
       type: delay
       durationMs: 50
@@ -193,7 +192,6 @@ processes:
         .await
         .expect("start");
 
-    // Wait until Running/Ready.
     let mut attempts = 0;
     loop {
         let snap = orchestrator
@@ -219,9 +217,7 @@ processes:
         .expect("stopped snapshot");
     let elapsed = start.elapsed();
 
-    // Graceful exit (SIGTERM trapped -> exit 0) must happen well before the 5s
-    // grace window elapses, so escalation is NOT triggered.
-    assert!(elapsed < std::time::Duration::from_secs(4), "took {elapsed:?}");
+    assert!(elapsed < std::time::Duration::from_secs(3), "took {elapsed:?}");
     assert!(matches!(
         stopped.processes[0].status,
         ProcessStatus::Stopped | ProcessStatus::Succeeded
@@ -233,14 +229,13 @@ processes:
     target_os = "linux",
     ignore = "Tauri GTK event loop requires a main thread on Linux"
 )]
-async fn stop_escalates_to_sigkill_after_grace() {
+async fn stop_kills_stubborn_process_with_sigkill() {
     let dir = tempfile::tempdir().expect("create temp dir");
     let yaml = r#"
 processes:
   stubborn:
     kind: service
     cmd: sh -c "trap '' TERM; sleep 60"
-    gracePeriodMs: 1000
     ready:
       type: delay
       durationMs: 50
@@ -287,15 +282,184 @@ processes:
         .expect("stop");
     let elapsed = start.elapsed();
 
-    // SIGTERM ignored; SIGKILL must fire after the 1s grace. Bounded well
-    // below the trap's 60s sleep.
-    assert!(elapsed < std::time::Duration::from_secs(5), "took {elapsed:?}");
+    assert!(elapsed < std::time::Duration::from_secs(3), "took {elapsed:?}");
     let snap = orchestrator
         .snapshot("stubborn-window")
         .await
         .expect("snapshot")
         .expect("session");
     assert!(snap.stopped_at.is_some());
+}
+
+#[tokio::test]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "Tauri GTK event loop requires a main thread on Linux"
+)]
+async fn start_process_on_running_service_is_noop() {
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let yaml = r#"
+processes:
+  polite:
+    kind: service
+    cmd: sh -c "trap 'exit 0' TERM; sleep 60"
+    ready:
+      type: delay
+      durationMs: 50
+"#;
+    let loaded = write_config(&dir, yaml);
+    let project = ProjectRecord {
+        id: ProjectId::new(),
+        name: "noop-project".to_string(),
+        base_dir: dir.path().to_path_buf(),
+        config_source: ProjectSource::ProjectFile,
+        config_path: dir.path().join("diavola.yml"),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    let app = build_test_app();
+    let orchestrator = ProcessOrchestrator::new();
+
+    orchestrator
+        .start_session(app.handle().clone(), "noop-window".to_string(), project, loaded)
+        .await
+        .expect("start");
+
+    let mut attempts = 0;
+    loop {
+        let snap = orchestrator
+            .snapshot("noop-window")
+            .await
+            .expect("snapshot")
+            .expect("session");
+        if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            break;
+        }
+        attempts += 1;
+        if attempts > 50 {
+            panic!("never reached ready");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    let before = orchestrator
+        .snapshot("noop-window")
+        .await
+        .expect("snapshot")
+        .expect("session");
+    let runtime_id_before = before.processes[0].runtime_id.clone();
+
+    let after = orchestrator
+        .start_process(app.handle().clone(), "noop-window", "polite")
+        .await
+        .expect("start_process on running service")
+        .expect("snapshot");
+
+    assert_eq!(
+        after.processes[0].runtime_id, runtime_id_before,
+        "runtime_id must not change — process was not reset"
+    );
+    assert!(
+        matches!(after.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running),
+        "process must still be running, got {:?}",
+        after.processes[0].status
+    );
+
+    let stopped = orchestrator
+        .stop_session(app.handle().clone(), "noop-window")
+        .await
+        .expect("stop")
+        .expect("stopped snapshot");
+    assert!(stopped.stopped_at.is_some());
+    assert!(matches!(
+        stopped.processes[0].status,
+        ProcessStatus::Stopped | ProcessStatus::Succeeded
+    ));
+}
+
+#[tokio::test]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "Tauri GTK event loop requires a main thread on Linux"
+)]
+async fn restart_process_respawns_service() {
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let yaml = r#"
+processes:
+  polite:
+    kind: service
+    cmd: sh -c "trap 'exit 0' TERM; sleep 60"
+    ready:
+      type: delay
+      durationMs: 50
+"#;
+    let loaded = write_config(&dir, yaml);
+    let project = ProjectRecord {
+        id: ProjectId::new(),
+        name: "restart-project".to_string(),
+        base_dir: dir.path().to_path_buf(),
+        config_source: ProjectSource::ProjectFile,
+        config_path: dir.path().join("diavola.yml"),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    let app = build_test_app();
+    let orchestrator = ProcessOrchestrator::new();
+
+    orchestrator
+        .start_session(app.handle().clone(), "restart-window".to_string(), project, loaded)
+        .await
+        .expect("start");
+
+    let mut attempts = 0;
+    loop {
+        let snap = orchestrator
+            .snapshot("restart-window")
+            .await
+            .expect("snapshot")
+            .expect("session");
+        if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            break;
+        }
+        attempts += 1;
+        if attempts > 50 {
+            panic!("never reached ready");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    orchestrator
+        .restart_process(app.handle().clone(), "restart-window", "polite")
+        .await
+        .expect("restart");
+
+    let mut attempts = 0;
+    loop {
+        let snap = orchestrator
+            .snapshot("restart-window")
+            .await
+            .expect("snapshot")
+            .expect("session");
+        if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            break;
+        }
+        attempts += 1;
+        if attempts > 50 {
+            panic!("process did not become ready after restart");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    let stopped = orchestrator
+        .stop_session(app.handle().clone(), "restart-window")
+        .await
+        .expect("stop")
+        .expect("stopped snapshot");
+    assert!(stopped.stopped_at.is_some());
+    assert!(matches!(
+        stopped.processes[0].status,
+        ProcessStatus::Stopped | ProcessStatus::Succeeded
+    ));
 }
 
 #[cfg(windows)]
@@ -315,7 +479,6 @@ processes:
   holder:
     kind: service
     cmd: cmd /C "node -e \"require('net').createServer().listen({port})\""
-    gracePeriodMs: 2000
     ready:
       type: delay
       durationMs: 300

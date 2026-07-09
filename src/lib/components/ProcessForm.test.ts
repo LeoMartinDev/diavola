@@ -20,7 +20,6 @@ const process: ProcessFormState = {
   commandCmd: "",
   intervalMs: null,
   timeoutMs: 60000,
-  gracePeriodMs: null,
 };
 
 describe("ProcessForm", () => {

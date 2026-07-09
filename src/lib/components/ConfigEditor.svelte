@@ -125,9 +125,6 @@
             <ConfigGeneralSection
               {project}
               projectSourceLabel={ctx.projectSourceLabel}
-              globalGracePeriodMs={ctx.globalGracePeriodMs}
-              globalGracePeriodError={ctx.globalGracePeriodError()}
-              onGlobalGracePeriodChange={ctx.onGlobalGracePeriodChange}
             />
           {:else if ctx.activeSection === "settings-environment"}
             <ConfigEnvironmentSection

@@ -9,7 +9,7 @@ use chrono::Utc;
 use tauri::{AppHandle, Emitter};
 use tokio::{
     process::Child,
-    sync::{broadcast, mpsc, oneshot, Mutex},
+    sync::{broadcast, mpsc, Mutex},
 };
 use tracing::{error, info, warn};
 
@@ -45,7 +45,6 @@ pub(super) struct ManagedProcess {
     log_tx: broadcast::Sender<String>,
     terminating: bool,
     generation: u64,
-    stop_notify_tx: Option<oneshot::Sender<()>>,
     #[cfg(windows)]
     pub(super) job: Option<Arc<crate::infrastructure::job::Job>>,
 }
@@ -95,7 +94,7 @@ impl ProcessOrchestrator {
         app_handle: AppHandle,
         window_key: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        self.finish_session(app_handle, window_key, None, true, false)
+        self.finish_session(app_handle, window_key, None, true)
             .await
     }
 
@@ -104,7 +103,7 @@ impl ProcessOrchestrator {
         app_handle: AppHandle,
         window_key: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        self.finish_session(app_handle, window_key, None, true, true)
+        self.finish_session(app_handle, window_key, None, true)
             .await
     }
 
@@ -114,7 +113,7 @@ impl ProcessOrchestrator {
             state.sessions.keys().cloned().collect()
         };
         for key in keys {
-            self.finish_session(app_handle.clone(), &key, None, true, false)
+            self.finish_session(app_handle.clone(), &key, None, true)
                 .await?;
         }
         Ok(())
@@ -126,7 +125,7 @@ impl ProcessOrchestrator {
             state.sessions.keys().cloned().collect()
         };
         for key in keys {
-            self.finish_session(app_handle.clone(), &key, None, true, true)
+            self.finish_session(app_handle.clone(), &key, None, true)
                 .await?;
         }
         Ok(())
@@ -138,15 +137,15 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        {
-            let state = self.inner.lock().await;
-            let active = state.sessions.get(window_key).ok_or_else(|| {
+        let kill_tx = {
+            let mut state = self.inner.lock().await;
+            let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
                     "no session available",
                     crate::error::ErrorCode::ProcessNotFound,
                 )
             })?;
-            let process = active.processes.get(process_name).ok_or_else(|| {
+            let process = active.processes.get_mut(process_name).ok_or_else(|| {
                 AppError::runtime_with_code(
                     format!("unknown process `{process_name}`"),
                     crate::error::ErrorCode::ProcessNotFound,
@@ -158,10 +157,24 @@ impl ProcessOrchestrator {
                     crate::error::ErrorCode::ProcessCannotRestart,
                 ));
             }
+            if active.stop_requested {
+                let snapshot = (*active.snapshot).clone();
+                return Ok(Some(snapshot));
+            }
+            let kill_tx = lifecycle::begin_process_termination(process);
+            lifecycle::reset_managed_process(process);
+            ActiveSession::sync_snapshot_process(
+                Arc::make_mut(&mut active.snapshot),
+                &process.snapshot,
+            );
+            kill_tx
+        };
+
+        if let Some(kill_tx) = kill_tx {
+            let _ = kill_tx.send(()).await;
         }
-        self.stop_process(app_handle.clone(), window_key, process_name)
-            .await?;
-        self.reset_process(window_key, process_name).await?;
+
+        self.emit_snapshot(&app_handle, window_key).await?;
         self.spawn_runnable_processes(app_handle.clone(), window_key)
             .await?;
         self.snapshot(window_key).await
@@ -173,19 +186,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        self.reset_process(window_key, process_name).await?;
-        self.spawn_runnable_processes(app_handle.clone(), window_key)
-            .await?;
-        self.snapshot(window_key).await
-    }
-
-    pub async fn stop_process(
-        &self,
-        app_handle: AppHandle,
-        window_key: &str,
-        process_name: &str,
-    ) -> Result<Option<RunSessionSnapshot>, AppError> {
-        let (grace_period, kill_tx, done_rx) = {
+        {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -199,33 +200,108 @@ impl ProcessOrchestrator {
                     crate::error::ErrorCode::ProcessNotFound,
                 )
             })?;
-            let grace_period = lifecycle::resolve_grace_period(
-                process.config.grace_period_ms,
-                active.loaded_config.config.grace_period_ms,
-            );
+            if matches!(process.config.kind, ProcessKind::Task) {
+                return Err(AppError::runtime_with_code(
+                    "cannot start a task process",
+                    crate::error::ErrorCode::ProcessCannotRestart,
+                ));
+            }
+            if process.child.is_some()
+                || matches!(
+                    process.snapshot.status,
+                    ProcessStatus::Starting
+                        | ProcessStatus::Running
+                        | ProcessStatus::Ready
+                        | ProcessStatus::Stopping
+                )
+            {
+                let snapshot = (*active.snapshot).clone();
+                return Ok(Some(snapshot));
+            }
+        }
+        self.reset_process(window_key, process_name).await?;
+        self.spawn_runnable_processes(app_handle.clone(), window_key)
+            .await?;
+        self.snapshot(window_key).await
+    }
+
+    pub async fn stop_process(
+        &self,
+        app_handle: AppHandle,
+        window_key: &str,
+        process_name: &str,
+    ) -> Result<Option<RunSessionSnapshot>, AppError> {
+        info!(process = %process_name, window = %window_key, "stop_process: entered");
+        let kill_tx = {
+            let mut state = self.inner.lock().await;
+            let active = state.sessions.get_mut(window_key).ok_or_else(|| {
+                AppError::runtime_with_code(
+                    "no session available",
+                    crate::error::ErrorCode::ProcessNotFound,
+                )
+            })?;
+            let process = active.processes.get_mut(&*process_name).ok_or_else(|| {
+                AppError::runtime_with_code(
+                    format!("unknown process `{process_name}`"),
+                    crate::error::ErrorCode::ProcessNotFound,
+                )
+            })?;
             if matches!(process.config.kind, ProcessKind::Task) {
                 return Err(AppError::runtime_with_code(
                     "cannot stop a task process",
                     crate::error::ErrorCode::ProcessCannotRestart,
                 ));
             }
-            let (notify_tx, notify_rx) = oneshot::channel();
-            process.stop_notify_tx = Some(notify_tx);
-            let kill_tx = lifecycle::begin_process_termination(process, false);
+            let kill_tx = lifecycle::begin_process_termination(process);
+            info!(
+                process = %process_name,
+                status = ?process.snapshot.status,
+                kill_tx_taken = kill_tx.is_some(),
+                "stop_process: begin_process_termination done"
+            );
             ActiveSession::sync_snapshot_process(
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
             );
-            (grace_period, kill_tx, notify_rx)
+            kill_tx
         };
 
         if let Some(kill_tx) = kill_tx {
             let _ = kill_tx.send(()).await;
         }
 
-        let _ = tokio::time::timeout(grace_period + Duration::from_secs(5), done_rx).await;
-
         self.emit_snapshot(&app_handle, window_key).await?;
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        let pname = process_name.to_string();
+        loop {
+            let snapshot = match self.snapshot(window_key).await? {
+                Some(s) => s,
+                None => return Ok(None),
+            };
+            let reached_terminal = snapshot.processes.iter().any(|p| {
+                p.name == pname
+                    && matches!(
+                        p.status,
+                        ProcessStatus::Stopped
+                            | ProcessStatus::Failed
+                            | ProcessStatus::Succeeded
+                    )
+            });
+            if reached_terminal {
+                info!(process = %process_name, "stop_process: process reached terminal state, returning");
+                return Ok(Some(snapshot));
+            }
+            if std::time::Instant::now() > deadline {
+                warn!(
+                    process = %process_name,
+                    "stop_process: process did not reach terminal state within 15s deadline"
+                );
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+
         Ok(self.snapshot(window_key).await?)
     }
 
@@ -313,7 +389,7 @@ impl ProcessOrchestrator {
         window_key: &str,
         process_name: &str,
     ) -> Result<(), AppError> {
-        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_grace_period_ms, global_log_entry_pattern) = {
+        let (session_id, _, base_dir, env, config, runtime_id, log_tx, global_log_entry_pattern) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -333,7 +409,6 @@ impl ProcessOrchestrator {
             }
             let env =
                 lifecycle::build_process_env(&active.loaded_config.config.env, &process.config.env);
-            let global_grace_period_ms = active.loaded_config.config.grace_period_ms;
             let global_log_entry_pattern =
                 active.loaded_config.config.log_entry_pattern.clone();
             process.snapshot.status = ProcessStatus::Starting;
@@ -352,7 +427,6 @@ impl ProcessOrchestrator {
                 process.config.clone(),
                 process.snapshot.runtime_id.clone(),
                 process.log_tx.clone(),
-                global_grace_period_ms,
                 global_log_entry_pattern,
             )
         };
@@ -542,49 +616,35 @@ impl ProcessOrchestrator {
         let process_name_for_wait = process_name.to_string();
         let exit_app_handle = app_handle.clone();
         let exit_window_key = window_key.to_string();
-        #[cfg(unix)]
-        let wait_pid = child_pid;
-        let grace_period = lifecycle::resolve_grace_period(
-            config.grace_period_ms,
-            global_grace_period_ms,
-        );
-        #[cfg(windows)]
-        let spawned_job = {
-            let mut state = self.inner.lock().await;
-            state
-                .sessions
-                .get_mut(window_key)
-                .and_then(|active| active.processes.get_mut(&*process_name))
-                .and_then(|p| p.job.clone())
-        };
-        #[cfg(windows)]
-        let wait_job = spawned_job.clone();
         thread::spawn(move || {
             tauri::async_runtime::block_on(async move {
                 let exit_status = {
                     let mut child = child.lock().await;
                     tokio::select! {
-                        result = child.wait() => result,
-                        _ = kill_rx.recv() => {
-                            // Graceful signal already sent by begin_process_termination.
-                            match tokio::time::timeout(grace_period, child.wait()).await {
-                                Ok(result) => result,
-                                Err(_) => {
-                                    #[cfg(unix)]
-                                    if let Some(pid) = wait_pid {
-                                        unsafe {
-                                            libc::kill(-(pid as i32), libc::SIGKILL);
-                                        }
-                                    }
-                                    #[cfg(windows)]
-                                    if let Some(job) = wait_job.as_ref() {
-                                        let _ = job.terminate();
-                                    }
-                                    let _ = child.kill().await;
-                                    child.wait().await
-                                }
-                            }
+                        result = child.wait() => {
+                            info!(process = %process_name_for_wait, "wait_task: child.wait() branch won");
+                            result
                         }
+                _ = kill_rx.recv() => {
+                    info!(process = %process_name_for_wait, "wait_task: kill_rx.recv() branch won");
+                    let _ = child.kill().await;
+                    match tokio::time::timeout(Duration::from_secs(10), child.wait()).await {
+                        Ok(result) => {
+                            info!(process = %process_name_for_wait, "wait_task: child.wait() after kill completed");
+                            result
+                        }
+                        Err(_) => {
+                            warn!(
+                                process = %process_name_for_wait,
+                                "process did not exit within kill timeout, forcing stop"
+                            );
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::TimedOut,
+                                "process did not exit within kill timeout",
+                            ))
+                        }
+                    }
+                }
                     }
                 };
                 match exit_status {
@@ -664,7 +724,7 @@ impl ProcessOrchestrator {
         success: bool,
         generation: u64,
     ) -> Result<(), AppError> {
-        let (kind, terminating, notify_tx) = {
+        let (kind, terminating) = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -680,14 +740,28 @@ impl ProcessOrchestrator {
             })?;
 
             if process.generation != generation {
+                info!(
+                    process = %process_name,
+                    stored_generation = process.generation,
+                    wait_generation = generation,
+                    "handle_process_exit: generation mismatch, returning early"
+                );
                 return Ok(());
             }
 
-            let notify_tx = process.stop_notify_tx.take();
             process.child = None;
             process.snapshot.exited_at = Some(Utc::now());
             process.snapshot.exit_code = exit_code;
             let terminating = process.terminating || active.stop_requested;
+
+            info!(
+                process = %process_name,
+                terminating,
+                stop_requested = active.stop_requested,
+                success,
+                exit_code = ?exit_code,
+                "handle_process_exit: setting status"
+            );
 
             if terminating {
                 process.snapshot.status = ProcessStatus::Stopped;
@@ -700,13 +774,9 @@ impl ProcessOrchestrator {
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
             );
-            (process.config.kind.clone(), terminating, notify_tx)
+            (process.config.kind.clone(), terminating)
         };
         info!(process = %process_name, exit_code = ?exit_code, "process exited");
-
-        if let Some(tx) = notify_tx {
-            let _ = tx.send(());
-        }
 
         self.emit_snapshot(&app_handle, window_key).await?;
 
@@ -725,7 +795,6 @@ impl ProcessOrchestrator {
             window_key,
             Some(format!("process `{process_name}` exited unexpectedly")),
             false,
-            false,
         )
         .await?;
         Ok(())
@@ -741,7 +810,7 @@ impl ProcessOrchestrator {
         generation: u64,
     ) -> Result<(), AppError> {
         error!(process = %process_name, error = %message, "process failed");
-        let (terminating, notify_tx) = {
+        let terminating = {
             let mut state = self.inner.lock().await;
             let active = state.sessions.get_mut(window_key).ok_or_else(|| {
                 AppError::runtime_with_code(
@@ -760,7 +829,6 @@ impl ProcessOrchestrator {
                 return Ok(());
             }
 
-            let notify_tx = process.stop_notify_tx.take();
             let terminating = process.terminating || active.stop_requested;
             if terminating {
                 process.snapshot.status = ProcessStatus::Stopped;
@@ -774,12 +842,8 @@ impl ProcessOrchestrator {
                 Arc::make_mut(&mut active.snapshot),
                 &process.snapshot,
             );
-            (terminating, notify_tx)
+            terminating
         };
-
-        if let Some(tx) = notify_tx {
-            let _ = tx.send(());
-        }
 
         self.emit_snapshot(&app_handle, window_key).await?;
 
@@ -787,7 +851,7 @@ impl ProcessOrchestrator {
             return Ok(());
         }
 
-        self.finish_session(app_handle, window_key, Some(message), false, false)
+        self.finish_session(app_handle, window_key, Some(message), false)
             .await?;
         Ok(())
     }
@@ -798,7 +862,6 @@ impl ProcessOrchestrator {
         window_key: &str,
         failure_message: Option<String>,
         explicit_stop: bool,
-        force: bool,
     ) -> Result<Option<RunSessionSnapshot>, AppError> {
         info!("session stopped");
         let kill_txs = {
@@ -811,7 +874,7 @@ impl ProcessOrchestrator {
             Arc::make_mut(&mut active.snapshot).stopped_at = Some(stopped_at);
             let mut kill_txs = Vec::new();
             for process in active.processes.values_mut() {
-                if let Some(kill_tx) = lifecycle::begin_process_termination(process, force) {
+                if let Some(kill_tx) = lifecycle::begin_process_termination(process) {
                     kill_txs.push(kill_tx);
                 } else if explicit_stop
                     && matches!(
@@ -850,6 +913,33 @@ impl ProcessOrchestrator {
                         crate::error::ErrorCode::ProcessStartFailed,
                     )
                 })?;
+        }
+
+        self.emit_snapshot(&app_handle, window_key).await?;
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            let snapshot = match self.snapshot(window_key).await? {
+                Some(s) => s,
+                None => return Ok(None),
+            };
+            let all_terminal = snapshot.processes.iter().all(|p| {
+                matches!(
+                    p.status,
+                    ProcessStatus::Stopped
+                        | ProcessStatus::Failed
+                        | ProcessStatus::Succeeded
+                        | ProcessStatus::Pending
+                        | ProcessStatus::Blocked
+                )
+            });
+            if all_terminal {
+                return Ok(Some(snapshot));
+            }
+            if std::time::Instant::now() > deadline {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
 
         self.emit_snapshot(&app_handle, window_key).await?;
@@ -945,7 +1035,6 @@ mod tests {
             config: crate::domain::config::DiavolaConfig {
                 env: Default::default(),
                 processes: Default::default(),
-                grace_period_ms: None,
                 log_entry_pattern: None,
             },
             raw_yaml: String::new(),

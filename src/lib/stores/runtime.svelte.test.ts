@@ -11,6 +11,9 @@ const clientMocks = vi.hoisted(() => ({
   getLaunchProject: vi.fn(),
   getSessionSnapshot: vi.fn(),
   hasActiveSessions: vi.fn(),
+  restartProcess: vi.fn(),
+  startProcess: vi.fn(),
+  stopProcess: vi.fn(),
 }));
 
 const windowMocks = vi.hoisted(() => ({
@@ -24,6 +27,9 @@ vi.mock("$lib/tauri/client", async () => {
     getLaunchProject: clientMocks.getLaunchProject,
     getSessionSnapshot: clientMocks.getSessionSnapshot,
     hasActiveSessions: clientMocks.hasActiveSessions,
+    restartProcess: clientMocks.restartProcess,
+    startProcess: clientMocks.startProcess,
+    stopProcess: clientMocks.stopProcess,
   };
 });
 
@@ -480,5 +486,73 @@ describe("runtimeStore.init", () => {
 
     expect(updaterMocks.checkForUpdate).not.toHaveBeenCalled();
     expect(runtimeStore.appUpdate).toEqual({ status: "idle" });
+  });
+});
+
+describe("runtimeStore process control re-entrancy", () => {
+  beforeEach(() => {
+    runtimeStore.session = {
+      sessionId: "s1",
+      projectId: "p1",
+      projectName: "demo",
+      baseDir: "/tmp/demo",
+      startedAt: "2026-07-09T00:00:00.000Z",
+      processes: [
+        {
+          runtimeId: "r1",
+          name: "api",
+          kind: "service",
+          status: "running",
+        },
+      ],
+    };
+    runtimeStore.busy = false;
+  });
+
+  afterEach(() => {
+    runtimeStore.busy = false;
+    vi.clearAllMocks();
+  });
+
+  it("drops a re-entrant stop call while a restart is in flight", async () => {
+    let resolveRestart: ((value: unknown) => void) | undefined;
+    clientMocks.restartProcess.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRestart = resolve;
+        }),
+    );
+    clientMocks.stopProcess.mockResolvedValue(runtimeStore.session);
+
+    const firstCall = runtimeStore.restartSessionProcess("api");
+    await Promise.resolve();
+    const secondCall = runtimeStore.stopSessionProcess("api");
+
+    expect(clientMocks.restartProcess).toHaveBeenCalledOnce();
+    expect(clientMocks.stopProcess).not.toHaveBeenCalled();
+
+    resolveRestart?.(runtimeStore.session);
+    await Promise.all([firstCall, secondCall]);
+  });
+
+  it("drops a re-entrant start call while a stop is in flight", async () => {
+    let resolveStop: ((value: unknown) => void) | undefined;
+    clientMocks.stopProcess.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+    clientMocks.startProcess.mockResolvedValue(runtimeStore.session);
+
+    const firstCall = runtimeStore.stopSessionProcess("api");
+    await Promise.resolve();
+    const secondCall = runtimeStore.startSessionProcess("api");
+
+    expect(clientMocks.stopProcess).toHaveBeenCalledOnce();
+    expect(clientMocks.startProcess).not.toHaveBeenCalled();
+
+    resolveStop?.(runtimeStore.session);
+    await Promise.all([firstCall, secondCall]);
   });
 });

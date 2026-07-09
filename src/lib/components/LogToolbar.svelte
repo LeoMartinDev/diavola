@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import Icon from "$lib/components/ui/Icon.svelte";
 
   type Props = {
@@ -14,6 +15,7 @@
     caseSensitive: boolean;
     onTogglePause: () => void;
     onClear: () => void;
+    menuActions?: Snippet;
   };
 
   let {
@@ -29,6 +31,7 @@
     caseSensitive = $bindable(),
     onTogglePause,
     onClear,
+    menuActions,
   }: Props = $props();
 
   let searchInput = $state<HTMLInputElement | null>(null);
@@ -230,5 +233,9 @@
       <span class="text-danger"><Icon name="error" size="xs" /></span>
       <span>{regexError}</span>
     </div>
+  {/if}
+
+  {#if menuActions}
+    {@render menuActions()}
   {/if}
 </div>

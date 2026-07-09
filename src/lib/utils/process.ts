@@ -25,6 +25,7 @@ export function processRowAction(process: ProcessSnapshot): RowAction {
     case "failed":
     case "succeeded":
       return "start";
+    case "stopping":
     default:
       return null;
   }

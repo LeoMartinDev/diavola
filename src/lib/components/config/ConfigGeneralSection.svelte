@@ -5,18 +5,9 @@
   type Props = {
     project: ProjectRecord | null;
     projectSourceLabel: string;
-    globalGracePeriodMs: number | string | null;
-    globalGracePeriodError: string | null;
-    onGlobalGracePeriodChange: (value: number | string | null) => void;
   };
 
-  let {
-    project,
-    projectSourceLabel,
-    globalGracePeriodMs,
-    globalGracePeriodError,
-    onGlobalGracePeriodChange,
-  }: Props = $props();
+  let { project, projectSourceLabel }: Props = $props();
 </script>
 
 <section class="grid gap-4">
@@ -52,13 +43,4 @@
       </div>
     </div>
   </div>
-
-  <TextField
-    label="Default grace period (ms)"
-    density="compact"
-    placeholder="10000"
-    error={globalGracePeriodError}
-    value={globalGracePeriodMs ?? ""}
-    oninput={(e) => onGlobalGracePeriodChange((e.currentTarget as HTMLInputElement).value)}
-  />
 </section>

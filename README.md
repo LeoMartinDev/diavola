@@ -34,8 +34,6 @@ env:                 # optional — shared env vars
   NODE_ENV: development
   DATABASE_URL: postgres://localhost:5432/myproject
 
-gracePeriodMs: 10000 # optional — global graceful shutdown timeout (default: 10000)
-
 logEntryPattern: "\\[\\d{2}:\\d{2}:\\d{2}\\]"  # optional — regex matching start of a new log entry
 
 processes:           # required — at least one process
@@ -49,7 +47,6 @@ processes:           # required — at least one process
     ready:                            # optional (services only)
       type: log | http | delay | command
       # ... type-specific fields
-    gracePeriodMs: 5000               # optional — overrides global
     logEntryPattern: "\\[.*\\]"   # optional — overrides global
 ```
 
@@ -59,24 +56,6 @@ processes:           # required — at least one process
 |------|----------|
 | `task` | Runs a command that finishes on its own (install, migrate, compile). Diavola waits for it to exit. If it fails (non-zero exit), everything stops. |
 | `service` | Runs a long-lived process (server, worker). Diavola starts it and monitors its readiness. If it stops unexpectedly, everything stops. |
-
-### Graceful Shutdown (`gracePeriodMs`)
-
-When you stop the app, Diavola sends each process a termination signal
-(SIGTERM/Ctrl+Break) and waits for it to exit. If the process hasn't finished
-after `gracePeriodMs`, it gets force-killed. Minimum value is 1000 ms.
-
-Set it globally (applies to all processes) or per-process (overrides global).
-
-```yaml
-gracePeriodMs: 15000   # global — wait 15s before force-kill
-
-processes:
-  api:
-    kind: service
-    cmd: npm run dev
-    gracePeriodMs: 5000   # per-process override
-```
 
 ### Log Entry Grouping (`logEntryPattern`)
 

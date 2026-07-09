@@ -39,11 +39,6 @@ export function validateProjectDetails(input: ProjectDetailsInput): ValidationRe
 
 export function validateConfigForm(formState: ConfigFormState): ValidationResult {
   const issues: ValidationIssue[] = [];
-  validateGracePeriodMs(
-    formState.globalGracePeriodMs,
-    "global.gracePeriodMs",
-    issues,
-  );
   validateProcesses(formState.processes, issues);
   return toResult(issues);
 }
@@ -95,11 +90,6 @@ function validateProcesses(processes: ProcessForm[], issues: ValidationIssue[]) 
     validateProcessEnvRows(process.id, process.envRows, issues);
     validateDependencies(process, names, processes, issues);
     validateReadyConfig(process, issues);
-    validateGracePeriodMs(
-      process.gracePeriodMs,
-      `process.${process.id}.gracePeriodMs`,
-      issues,
-    );
   }
 }
 
@@ -200,20 +190,6 @@ function validateNonNegativeNumber(
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue) || numericValue < 0) {
     issues.push({ key, message: "Enter a finite number greater than or equal to 0." });
-  }
-}
-
-function validateGracePeriodMs(
-  value: number | string | null,
-  key: string,
-  issues: ValidationIssue[],
-) {
-  if (value === null || value === "") {
-    return;
-  }
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue) || numericValue < 1000) {
-    issues.push({ key, message: "Grace period must be at least 1000 ms." });
   }
 }
 

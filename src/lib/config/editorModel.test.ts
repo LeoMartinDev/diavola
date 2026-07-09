@@ -6,33 +6,36 @@ import {
   serializeConfig,
 } from "$lib/config/editorModel";
 
-describe("gracePeriodMs round-trip", () => {
-  it("emits gracePeriodMs on a process when set", () => {
+describe("serializeConfig", () => {
+  it("serializes a basic config with a process", () => {
     const form = createProcess("api");
-    form.gracePeriodMs = 30000;
+    form.cmd = "deno task dev";
     const config = buildConfig({ globalEnvRows: [], processes: [form] });
-    expect(config.processes["api"]?.gracePeriodMs).toBe(30000);
+    expect(config.processes["api"]?.cmd).toBe("deno task dev");
+    expect(config.processes["api"]?.kind).toBe("service");
   });
 
-  it("omits gracePeriodMs when blank", () => {
+  it("omits optional fields when blank", () => {
     const form = createProcess("api");
-    form.gracePeriodMs = "";
-    const config = buildConfig({ globalGracePeriodMs: null, globalEnvRows: [], processes: [form] });
-    expect(config.processes["api"]?.gracePeriodMs).toBeUndefined();
+    const config = buildConfig({ globalEnvRows: [], processes: [form] });
+    expect(config.processes["api"]?.ready).toBeUndefined();
+    expect(config.processes["api"]?.logEntryPattern).toBeUndefined();
   });
 
   it("round-trips through toProcessForm", () => {
     const form = createProcess("api");
-    form.gracePeriodMs = 7000;
-    const config = buildConfig({ globalGracePeriodMs: null, globalEnvRows: [], processes: [form] });
+    form.cmd = "npm start";
+    form.envRows = [{ id: "e1", key: "PORT", value: "3000" }];
+    const config = buildConfig({ globalEnvRows: [], processes: [form] });
     const back = toProcessForm("api", config.processes["api"]!);
-    expect(back.gracePeriodMs).toBe(7000);
+    expect(back.cmd).toBe("npm start");
+    expect(back.envRows[0].key).toBe("PORT");
   });
 
-  it("serializes global gracePeriodMs", () => {
+  it("serializes global logEntryPattern", () => {
     const form = createProcess("api");
-    const config = buildConfig({ globalGracePeriodMs: 12000, globalEnvRows: [], processes: [form] });
+    const config = buildConfig({ globalLogEntryPattern: "\\[\\d+:\\d+:\\d+\\]", globalEnvRows: [], processes: [form] });
     const yaml = serializeConfig(config);
-    expect(yaml).toContain("gracePeriodMs: 12000");
+    expect(yaml).toContain("logEntryPattern:");
   });
 });

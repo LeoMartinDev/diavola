@@ -374,6 +374,7 @@ class RuntimeStore {
   }
 
   async restartSessionProcess(processName: string) {
+    if (this.busy) return;
     this.busy = true;
     try {
       this.session = await restartProcess(processName);
@@ -386,6 +387,7 @@ class RuntimeStore {
   }
 
   async startSessionProcess(processName: string) {
+    if (this.busy) return;
     this.busy = true;
     try {
       this.session = await startProcess(processName);
@@ -398,6 +400,7 @@ class RuntimeStore {
   }
 
   async stopSessionProcess(processName: string) {
+    if (this.busy) return;
     this.busy = true;
     try {
       this.session = await stopProcess(processName);

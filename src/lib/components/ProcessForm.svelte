@@ -75,13 +75,4 @@
     bind:value={process.cmd}
     onblur={() => onFieldBlur?.(`process.${process.id}.cmd`)}
   />
-
-  <TextField
-    label="Grace period (ms)"
-    density="compact"
-    placeholder="10000"
-    error={processIssue(process, "gracePeriodMs")}
-    bind:value={process.gracePeriodMs}
-    onblur={() => onFieldBlur?.(`process.${process.id}.gracePeriodMs`)}
-  />
 </section>

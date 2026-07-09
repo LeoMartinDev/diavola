@@ -7,8 +7,6 @@ pub struct DiavolaConfig {
     #[serde(default)]
     pub env: IndexMap<String, String>,
     #[serde(default)]
-    pub grace_period_ms: Option<u64>,
-    #[serde(default)]
     pub log_entry_pattern: Option<String>,
     pub processes: IndexMap<String, ProcessConfig>,
 }
@@ -24,8 +22,6 @@ pub struct ProcessConfig {
     pub depends_on: IndexMap<String, DependencyCondition>,
     #[serde(default)]
     pub ready: Option<ReadyConfig>,
-    #[serde(default)]
-    pub grace_period_ms: Option<u64>,
     #[serde(default)]
     pub log_entry_pattern: Option<String>,
 }

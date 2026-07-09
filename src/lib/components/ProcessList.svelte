@@ -46,7 +46,7 @@
     {#each processes as process (process.runtimeId)}
       {@const selected = process.runtimeId === selectedProcessRuntimeId}
       {@const action = processRowAction(process)}
-      {@const restartable = !busy && (action === "stop" || action === "start")}
+      {@const restartable = !busy && action === "stop"}
       <Card
         class={`group relative flex items-center gap-2.5 px-3 ${
           selected ? "bg-surface-raised" : ""
@@ -110,20 +110,22 @@
                 <Icon name="play" size="xs" />
               {/if}
             </button>
-            <button
-              type="button"
-              class="grid h-6 w-6 place-items-center rounded text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={!restartable}
-              aria-label={`Restart ${process.name}`}
-              title={`Restart ${process.name}`}
-              onclick={(event) => {
-                event.stopPropagation();
-                onRestart(process.name);
-              }}
-            >
-              <!-- Restart: circular arrow -->
-              <Icon name="restart" size="xs" />
-            </button>
+            {#if action === "stop"}
+              <button
+                type="button"
+                class="grid h-6 w-6 place-items-center rounded text-text-subtle transition-colors duration-75 hover:bg-surface-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!restartable}
+                aria-label={`Restart ${process.name}`}
+                title={`Restart ${process.name}`}
+                onclick={(event) => {
+                  event.stopPropagation();
+                  onRestart(process.name);
+                }}
+              >
+                <!-- Restart: circular arrows -->
+                <Icon name="restart" size="xs" />
+              </button>
+            {/if}
           {:else if process.kind !== "task"}
             <button
               type="button"

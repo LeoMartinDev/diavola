@@ -9,15 +9,6 @@ use crate::domain::{
 
 use super::ManagedProcess;
 
-pub(super) const DEFAULT_GRACE_PERIOD_MS: u64 = 10_000;
-
-pub(super) fn resolve_grace_period(
-    process: Option<u64>,
-    global: Option<u64>,
-) -> std::time::Duration {
-    std::time::Duration::from_millis(process.or(global).unwrap_or(DEFAULT_GRACE_PERIOD_MS))
-}
-
 pub(super) fn build_process_env(
     global_env: &IndexMap<String, String>,
     process_env: &IndexMap<String, String>,
@@ -38,7 +29,6 @@ pub(super) fn reset_managed_process(process: &mut ManagedProcess) {
     process.child = None;
     process.pid = None;
     process.kill_tx = None;
-    process.stop_notify_tx = None;
     process.terminating = false;
     process.generation += 1;
     process.snapshot.status = ProcessStatus::Pending;
@@ -61,7 +51,7 @@ pub(super) fn reset_managed_process(process: &mut ManagedProcess) {
 /// separately from the child mutex so no deadlock is possible). This ensures
 /// the process exits before `stop_process` returns its snapshot, eliminating
 /// the "stuck at Stopping" race.
-pub(super) fn begin_process_termination(process: &mut ManagedProcess, force: bool) -> Option<mpsc::Sender<()>> {
+pub(super) fn begin_process_termination(process: &mut ManagedProcess) -> Option<mpsc::Sender<()>> {
     process.terminating = true;
 
     if matches!(
@@ -72,18 +62,13 @@ pub(super) fn begin_process_termination(process: &mut ManagedProcess, force: boo
 
         #[cfg(unix)]
         if let Some(pid) = process.pid {
-            let signal = if force { libc::SIGKILL } else { libc::SIGTERM };
             unsafe {
-                libc::kill(-(pid as i32), signal);
+                libc::kill(-(pid as i32), libc::SIGKILL);
             }
         }
         #[cfg(windows)]
-        if force {
-            if let Some(job) = &process.job {
-                let _ = job.terminate();
-            }
-        } else if let Some(pid) = process.pid {
-            crate::infrastructure::job::send_ctrl_break(pid as u32);
+        if let Some(job) = &process.job {
+            let _ = job.terminate();
         }
 
         process.kill_tx.take()
@@ -116,7 +101,6 @@ mod tests {
                 env: IndexMap::new(),
                 depends_on: IndexMap::new(),
                 ready: None,
-                grace_period_ms: None,
                 log_entry_pattern: None,
             },
             snapshot: ProcessSnapshot {
@@ -134,7 +118,6 @@ mod tests {
             log_tx,
             terminating: false,
             generation: 0,
-            stop_notify_tx: None,
             #[cfg(windows)]
             job: None,
         }
@@ -232,7 +215,7 @@ mod tests {
             let (mut process, mut kill_rx) =
                 managed_process_with_kill_tx("api", ProcessKind::Service, status);
 
-            let kill_tx = begin_process_termination(&mut process, false);
+            let kill_tx = begin_process_termination(&mut process);
             assert_eq!(process.snapshot.status, ProcessStatus::Stopping);
             assert!(process.terminating, "terminating flag should be set for {status:?}");
             let kill_tx = kill_tx.expect("kill signal should be returned for {status:?}");
@@ -264,7 +247,7 @@ mod tests {
             let (mut process, _kill_rx) =
                 managed_process_with_kill_tx("api", ProcessKind::Service, status);
 
-            let kill_tx = begin_process_termination(&mut process, false);
+            let kill_tx = begin_process_termination(&mut process);
             assert!(
                 kill_tx.is_none(),
                 "no kill signal expected for terminal/pending state {status:?}"
@@ -275,29 +258,5 @@ mod tests {
                 "status must be unchanged for {status:?}"
             );
         }
-    }
-
-    #[test]
-    fn resolve_grace_period_uses_default_when_unset() {
-        assert_eq!(
-            resolve_grace_period(None, None),
-            std::time::Duration::from_millis(DEFAULT_GRACE_PERIOD_MS)
-        );
-    }
-
-    #[test]
-    fn resolve_grace_period_global_wins_over_default() {
-        assert_eq!(
-            resolve_grace_period(None, Some(20_000)),
-            std::time::Duration::from_secs(20)
-        );
-    }
-
-    #[test]
-    fn resolve_grace_period_process_wins_over_global() {
-        assert_eq!(
-            resolve_grace_period(Some(7_000), Some(20_000)),
-            std::time::Duration::from_secs(7)
-        );
     }
 }

@@ -29,7 +29,6 @@ export function useConfigEditor(
 
   const s = $state({
     globalEnvRows: [] as EnvRow[],
-    globalGracePeriodMs: null as number | string | null,
     globalLogEntryPattern: "" as string,
     processes: [] as ProcessFormState[],
     selectedProcessId: null as string | null,
@@ -50,7 +49,7 @@ export function useConfigEditor(
       return s.processes.find((p) => p.id === s.selectedProcessId) ?? s.processes[0] ?? null;
     },
     get formState(): ConfigFormState {
-      return { globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, globalLogEntryPattern: s.globalLogEntryPattern, processes: s.processes };
+      return { globalEnvRows: s.globalEnvRows, globalLogEntryPattern: s.globalLogEntryPattern, processes: s.processes };
     },
     get formIssueCount(): number {
       return s.validationIssues.length;
@@ -79,13 +78,12 @@ export function useConfigEditor(
 
   function currentYaml() {
     return serializeConfig(
-      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalGracePeriodMs: s.globalGracePeriodMs, globalLogEntryPattern: s.globalLogEntryPattern, processes: s.processes }),
+      buildConfigFromForm({ globalEnvRows: s.globalEnvRows, globalLogEntryPattern: s.globalLogEntryPattern, processes: s.processes }),
     );
   }
 
   function resetEmpty() {
     s.globalEnvRows = [];
-    s.globalGracePeriodMs = null;
     s.globalLogEntryPattern = "";
     s.processes = [newProcess("api")];
     s.selectedProcessId = s.processes[0].id;
@@ -94,7 +92,6 @@ export function useConfigEditor(
 
   function resetUnloaded() {
       s.globalEnvRows = [];
-    s.globalGracePeriodMs = null;
     s.globalLogEntryPattern = "";
     s.processes = [];
     s.selectedProcessId = null;
@@ -125,7 +122,6 @@ export function useConfigEditor(
         return;
       }
       s.suppressDirty = true;
-      s.globalGracePeriodMs = config.gracePeriodMs ?? null;
       s.globalLogEntryPattern = config.logEntryPattern ?? "";
       s.globalEnvRows = Object.entries(config.env ?? {}).map(([key, value]) => ({
         id: nextId("env"),
@@ -315,14 +311,6 @@ export function useConfigEditor(
 
   function markTouched(key: string) { s.touchedFields.add(key); }
 
-  function globalGracePeriodError() {
-    return issueFor("global.gracePeriodMs");
-  }
-
-  function onGlobalGracePeriodChange(value: number | string | null) {
-    s.globalGracePeriodMs = value;
-  }
-
   return Object.assign(s, {
     nextId,
     newProcess,
@@ -355,8 +343,6 @@ export function useConfigEditor(
     selectProcessByIndex,
     handleProcessOptionKeydown,
     markTouched,
-    globalGracePeriodError,
-    onGlobalGracePeriodChange,
     get debounceTimer(): ReturnType<typeof setTimeout> | null { return debounceTimer; },
     set debounceTimer(v: ReturnType<typeof setTimeout> | null) { debounceTimer = v; },
   });

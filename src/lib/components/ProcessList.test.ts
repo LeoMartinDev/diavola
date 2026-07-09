@@ -136,6 +136,17 @@ describe("ProcessList action button", () => {
         expect(getByRole("button", { name: "Start api" })).toBeInTheDocument();
       },
     );
+
+    it.each(["stopped", "succeeded", "failed"] as const)(
+      "does not render a Restart button for status %s",
+      (status) => {
+        const { queryByRole } = render(ProcessList, {
+          props: makeProps({ processes: [makeProcess({ status })] }),
+        });
+
+        expect(queryByRole("button", { name: /Restart api/ })).toBeNull();
+      },
+    );
   });
 
   describe("when the process is in a transitional state", () => {

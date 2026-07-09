@@ -5,6 +5,7 @@
   import LogViewer from "$lib/components/LogViewer.svelte";
   import SidebarRuntime from "$lib/components/SidebarRuntime.svelte";
   import TitleBar from "$lib/components/TitleBar.svelte";
+  import ProjectMenu from "$lib/components/ProjectMenu.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Toast from "$lib/components/ui/Toast.svelte";
   import EmptyState from "$lib/components/ui/EmptyState.svelte";
@@ -173,6 +174,20 @@
     <Toast />
   </main>
 {:else}
+  {#snippet projectMenu()}
+    <ProjectMenu
+      selection={runtimeStore.selection}
+      selectedProcess={runtimeStore.selectedProcess}
+      selectedTerminal={runtimeStore.selectedTerminal}
+      busy={runtimeStore.busy}
+      logActions={runtimeStore.logActions}
+      onRestartProcess={(name) => runtimeStore.restartSessionProcess(name)}
+      onStopProcess={(name) => runtimeStore.stopSessionProcess(name)}
+      launchLocked={runtimeStore.launchLocked}
+      onCloseTerminal={() => runtimeStore.closeSelectedTerminal()}
+      onOpenTerminal={() => { void openTerminal(); }}
+    />
+  {/snippet}
   <AppShell {titleBar} {processList}>
             {#if selection?.kind === "terminal" && selectedTerminal}
               {#await import("$lib/components/TerminalPane.svelte") then { default: TerminalPane }}
@@ -182,6 +197,7 @@
                   onInput={(data) => runtimeStore.writeToTerminal(data)}
                   onResize={(cols, rows) => runtimeStore.resizeSelectedTerminal(cols, rows)}
                   onOpenTerminal={openTerminal}
+                  menuActions={projectMenu}
                 />
               {/await}
           {:else if selection?.kind === "process" && session}
@@ -192,6 +208,7 @@
               truncatedCount={runtimeStore.truncatedLogCountForSelectedProcess()}
               onClear={() => runtimeStore.clearSelectedProcessLogs()}
               onActions={(actions) => (runtimeStore.logActions = actions)}
+              menuActions={projectMenu}
             />
           {:else}
             <div class="grid h-full place-items-center px-6 text-center">

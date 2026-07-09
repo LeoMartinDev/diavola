@@ -80,7 +80,6 @@ mod tests {
                 env: IndexMap::new(),
                 depends_on: IndexMap::new(),
                 ready: None,
-                grace_period_ms: None,
                 log_entry_pattern: None,
             },
             snapshot: ProcessSnapshot {
@@ -98,7 +97,6 @@ mod tests {
             log_tx,
             terminating: false,
             generation: 0,
-            stop_notify_tx: None,
             #[cfg(windows)]
             job: None,
         }
@@ -119,7 +117,6 @@ mod tests {
             env: IndexMap::new(),
             depends_on,
             ready: None,
-            grace_period_ms: None,
             log_entry_pattern: None,
         };
 
@@ -148,7 +145,6 @@ mod tests {
             env: IndexMap::new(),
             depends_on,
             ready: None,
-            grace_period_ms: None,
             log_entry_pattern: None,
         };
 

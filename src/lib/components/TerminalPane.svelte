@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { onMount } from "svelte";
   import { FitAddon } from "@xterm/addon-fit";
   import { Terminal } from "xterm";
@@ -23,9 +24,10 @@
     onInput: (data: string) => void;
     onResize: (cols: number, rows: number) => void;
     onOpenTerminal: () => void;
+    menuActions?: Snippet;
   };
 
-  let { terminalId, output, onInput, onResize, onOpenTerminal }: Props =
+  let { terminalId, output, onInput, onResize, onOpenTerminal, menuActions }: Props =
     $props();
 
   let host = $state<HTMLDivElement | null>(null);
@@ -131,6 +133,11 @@
 </script>
 
 <section class="flex h-full min-h-0 flex-col bg-surface">
+  {#if menuActions}
+    <div class="flex items-center justify-end px-2 pt-[5px] pb-[4px]">
+      {@render menuActions()}
+    </div>
+  {/if}
   <div
     bind:this={host}
     data-native-selectable="terminal"
