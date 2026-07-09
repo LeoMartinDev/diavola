@@ -420,6 +420,14 @@ impl ProcessOrchestrator {
 
         self.emit_snapshot(&app_handle, window_key).await?;
 
+        let readiness_rx = if matches!(config.kind, ProcessKind::Service)
+            && config.ready.is_some()
+        {
+            Some(log_tx.subscribe())
+        } else {
+            None
+        };
+
         let orchestrator = self.clone();
         let wk = window_key.to_string();
         let append_fn =
@@ -488,7 +496,7 @@ impl ProcessOrchestrator {
                             &ready,
                             &base_dir_for_ready,
                             &env_for_ready,
-                            Some(log_tx.subscribe()),
+                            readiness_rx,
                         )
                         .await;
                         match result {
