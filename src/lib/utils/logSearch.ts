@@ -44,9 +44,6 @@ export async function computeMatchIndices(args: ComputeMatchArgs): Promise<numbe
       caseSensitive: options.caseSensitive,
       upTo: logs.length,
     });
-    if (reply.matchIndices.length === 0) {
-      return searchLogsLocally(logs, matcher);
-    }
     return reply.matchIndices;
   } catch {
     return searchLogsLocally(logs, matcher);

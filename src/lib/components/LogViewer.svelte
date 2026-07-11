@@ -5,7 +5,6 @@
   import { computeVirtualScroll, isAtBottom } from "$lib/utils/virtualScroll";
   import {
     buildMatcher,
-    highlightLine,
     type SearchOptions,
   } from "$lib/utils/searchHighlight";
   import { computeMatchIndices } from "$lib/utils/logSearch";
@@ -430,7 +429,7 @@
               row.stream
             ] ?? 'border-l-transparent'} {borderCornerClass(
               startIndex + index,
-            )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {startIndex + index === activeMatchRow && matcherActive ? 'bg-surface-hover/60' : ''}"
+            )} {row.isContinuation ? 'bg-surface-muted/40' : ''} {matchRowIndices.includes(startIndex + index) && matcherActive ? 'bg-warning/15' : ''} {startIndex + index === activeMatchRow && matcherActive ? 'bg-surface-hover/60' : ''}"
           >
             <span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-text-subtle w-[70px] select-none">
               {#if row.isFirstLine}
@@ -452,18 +451,7 @@
                 <span class="mr-1">&#9679;</span>
               {/if}
               {#each parseAnsi(row.text) as ansiSeg}
-                <span style={styleToCss(ansiSeg.style) ?? undefined}>
-                  {#each highlightLine(ansiSeg.text, matchRowIndices.includes(startIndex + index) ? matcher : null) as seg}
-                    {#if seg.match}
-                      <mark
-                        class={`text-text rounded-[2px] ${startIndex + index === activeMatchRow && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
-                        >{seg.text}</mark
-                      >
-                    {:else}
-                      {seg.text}
-                    {/if}
-                  {/each}
-                </span>
+                <span style={styleToCss(ansiSeg.style) ?? undefined}>{ansiSeg.text}</span>
               {/each}
             </span>
           </div>

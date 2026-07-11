@@ -72,8 +72,8 @@ describe("LogViewer search", () => {
     await fireEvent.input(input);
     await new Promise((r) => setTimeout(r, 100));
     expect(container.textContent).toContain("worker ready");
-    const marks = container.querySelectorAll("mark");
-    expect(marks.length).toBeGreaterThanOrEqual(2);
+    const matched = container.querySelectorAll('[data-log-row="true"].bg-warning\\/15');
+    expect(matched.length).toBeGreaterThanOrEqual(2);
   });
 
   it("highlights regex matches without hiding non-matches", async () => {
@@ -86,7 +86,7 @@ describe("LogViewer search", () => {
     await fireEvent.input(input);
     await new Promise((r) => setTimeout(r, 100));
     expect(container.textContent).toContain("warn 7");
-    expect(container.querySelectorAll("mark").length).toBe(2);
+    expect(container.querySelectorAll('[data-log-row="true"].bg-warning\\/15').length).toBe(2);
   });
 
   it("shows the error popover and disables nav on an invalid regex", async () => {
