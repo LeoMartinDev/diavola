@@ -42,16 +42,45 @@ describe("searchLogsLocally", () => {
 });
 
 describe("computeMatchIndices", () => {
-  it("returns row positions matching the query", () => {
+  it("scans locally when paused", async () => {
     const logs = [row("hit", 0), row("miss", 1), row("hit", 2)];
     const m = buildMatcher("hit", opts);
-    const indices = computeMatchIndices({ logs, matcher: m });
+    const indices = await computeMatchIndices({
+      logs,
+      matcher: m,
+      query: "hit",
+      options: opts,
+      runtimeId: "rt-1",
+      paused: true,
+    });
     expect(indices).toEqual([0, 2]);
   });
 
-  it("returns [] for an invalid matcher (regex error)", () => {
+  it("scans locally when runtimeId is null (dev/tests)", async () => {
+    const logs = [row("alpha", 0), row("beta", 1)];
+    const m = buildMatcher("alpha", opts);
+    const indices = await computeMatchIndices({
+      logs,
+      matcher: m,
+      query: "alpha",
+      options: opts,
+      runtimeId: null,
+      paused: false,
+    });
+    expect(indices).toEqual([0]);
+  });
+
+  it("returns [] for an invalid matcher (regex error)", async () => {
+    const logs = [row("x", 0)];
     const m = buildMatcher("(unclosed", { regex: true, caseSensitive: false });
-    const indices = computeMatchIndices({ logs: [row("x", 0)], matcher: m });
+    const indices = await computeMatchIndices({
+      logs,
+      matcher: m,
+      query: "(unclosed",
+      options: { regex: true, caseSensitive: false },
+      runtimeId: null,
+      paused: false,
+    });
     expect(indices).toEqual([]);
   });
 });

@@ -113,18 +113,25 @@
     goToMatch(activeMatchIndex - 1);
   }
 
+  let searchGeneration = 0;
   const searchScheduler = debounceWithMaxWait(refreshMatches, 80, 250);
 
-  function refreshMatches() {
+  async function refreshMatches() {
     const m = matcher;
     if (m === null || "error" in m) {
       matchRowIndices = [];
       return;
     }
-    const indices = computeMatchIndices({
+    const generation = ++searchGeneration;
+    const indices = await computeMatchIndices({
       logs: visibleLogs,
       matcher: m,
+      query,
+      options: searchOptions,
+      runtimeId: runtimeId ?? null,
+      paused,
     });
+    if (generation !== searchGeneration) return;
     matchRowIndices = indices;
     if (activeMatchIndex > indices.length - 1) {
       activeMatchIndex = Math.max(0, indices.length - 1);
@@ -446,7 +453,7 @@
               {/if}
               {#each parseAnsi(row.text) as ansiSeg}
                 <span style={styleToCss(ansiSeg.style) ?? undefined}>
-                  {#each highlightLine(ansiSeg.text, matcher) as seg}
+                  {#each highlightLine(ansiSeg.text, matchRowIndices.includes(startIndex + index) ? matcher : null) as seg}
                     {#if seg.match}
                       <mark
                         class={`text-text rounded-[2px] ${startIndex + index === activeMatchRow && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
