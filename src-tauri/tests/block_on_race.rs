@@ -12,18 +12,16 @@ async fn wait_task_via_block_on_completes_after_stop() {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
-    let mut child = cmd.spawn().expect("spawn");
+    let child = cmd.spawn().expect("spawn");
     let pid = child.id().expect("pid");
 
     let child = Arc::new(tokio::sync::Mutex::new(child));
     let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
 
     let child_clone = child.clone();
-    let process_name = "test-service".to_string();
+    let _process_name = "test-service".to_string();
 
     // This mimics the orchestrator: thread::spawn + block_on
     let handle = std::thread::spawn(move || {
@@ -78,10 +76,7 @@ async fn wait_task_via_block_on_completes_after_stop() {
     let result = handle.join();
     match result {
         Ok(Ok(status)) => {
-            assert!(
-                !status.success(),
-                "process should have been killed"
-            );
+            assert!(!status.success(), "process should have been killed");
             eprintln!("[test] PASSED: status = {status:?}");
         }
         Ok(Err(e)) => panic!("wait task returned error: {e}"),
@@ -97,9 +92,7 @@ async fn wait_task_block_on_repeated_20_times() {
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(async {
-                    run_single_stop_race_via_block_on().await
-                })
+                .block_on(async { run_single_stop_race_via_block_on().await })
         }));
         match result {
             Ok(Ok(())) => {}
@@ -116,11 +109,9 @@ async fn run_single_stop_race_via_block_on() -> Result<(), String> {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
-    let mut child = cmd.spawn().map_err(|e| format!("spawn: {e}"))?;
+    let child = cmd.spawn().map_err(|e| format!("spawn: {e}"))?;
     let pid = child.id().ok_or("no pid")?;
 
     let child = Arc::new(tokio::sync::Mutex::new(child));

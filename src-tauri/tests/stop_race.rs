@@ -15,11 +15,9 @@ async fn stop_race_kill_rx_fires_before_child_exits() {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
-    let mut child = cmd.spawn().expect("spawn");
+    let child = cmd.spawn().expect("spawn");
     let pid = child.id().expect("pid");
 
     let child = Arc::new(tokio::sync::Mutex::new(child));
@@ -90,10 +88,7 @@ async fn stop_race_kill_rx_fires_before_child_exits() {
 #[tokio::test]
 async fn stop_race_repeat_100_times() {
     for i in 0..100 {
-        let result = tokio::time::timeout(
-            Duration::from_secs(10),
-            stop_race_single(),
-        ).await;
+        let result = tokio::time::timeout(Duration::from_secs(10), stop_race_single()).await;
 
         match result {
             Ok(Ok(())) => {}
@@ -110,11 +105,9 @@ async fn stop_race_single() -> Result<(), String> {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
-    let mut child = cmd.spawn().map_err(|e| format!("spawn: {e}"))?;
+    let child = cmd.spawn().map_err(|e| format!("spawn: {e}"))?;
     let pid = child.id().ok_or("no pid")?;
 
     let child = Arc::new(tokio::sync::Mutex::new(child));

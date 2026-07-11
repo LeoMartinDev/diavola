@@ -13,9 +13,7 @@ async fn child_wait_returns_after_external_sigkill_to_process_group() {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
     let mut child = cmd.spawn().expect("spawn");
     let pid = child.id().expect("pid");
@@ -47,11 +45,9 @@ async fn child_wait_returns_after_select_kill_branch() {
     cmd.arg("-c").arg("sleep 999");
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::null());
-    unsafe {
-        cmd.as_std_mut().process_group(0);
-    }
+    cmd.as_std_mut().process_group(0);
 
-    let mut child = cmd.spawn().expect("spawn");
+    let child = cmd.spawn().expect("spawn");
     let pid = child.id().expect("pid");
 
     let (kill_tx, mut kill_rx) = tokio::sync::mpsc::channel::<()>(1);

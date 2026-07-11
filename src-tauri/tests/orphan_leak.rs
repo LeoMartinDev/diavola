@@ -42,7 +42,10 @@ fn pid_is_dead(pid: u32) -> bool {
     if ret == 0 {
         return false;
     }
-    matches!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH) | Some(_))
+    matches!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH) | Some(_)
+    )
 }
 
 /// Poll until every PID is dead (with timeout).
@@ -51,9 +54,7 @@ async fn assert_pids_are_dead(pids: &[u32], label: &str) {
     for &pid in pids {
         while !pid_is_dead(pid) {
             if tokio::time::Instant::now() > deadline {
-                panic!(
-                    "PID {pid} still alive after deadline ({label}) — orphan leak detected"
-                );
+                panic!("PID {pid} still alive after deadline ({label}) — orphan leak detected");
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -193,7 +194,10 @@ async fn sigterm_ignored_by_watchdog_sigkill_cleans() {
 
     // Watchdog ignores SIGTERM, so it should still be alive
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(!pid_is_dead(pid), "watchdog should ignore SIGTERM and stay alive");
+    assert!(
+        !pid_is_dead(pid),
+        "watchdog should ignore SIGTERM and stay alive"
+    );
 
     // Now escalate to SIGKILL on the whole group
     unsafe {
@@ -629,7 +633,10 @@ processes:
                 .await
                 .expect("snapshot")
                 .expect("session");
-            if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            if matches!(
+                snap.processes[0].status,
+                ProcessStatus::Ready | ProcessStatus::Running
+            ) {
                 break;
             }
             attempts += 1;
@@ -715,7 +722,10 @@ processes:
                 .await
                 .expect("snapshot")
                 .expect("session");
-            if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            if matches!(
+                snap.processes[0].status,
+                ProcessStatus::Ready | ProcessStatus::Running
+            ) {
                 break;
             }
             attempts += 1;
@@ -762,7 +772,12 @@ processes:
             let window = format!("cyc{cycle}");
 
             orchestrator
-                .start_session(app.handle().clone(), window.clone(), project, loaded.clone())
+                .start_session(
+                    app.handle().clone(),
+                    window.clone(),
+                    project,
+                    loaded.clone(),
+                )
                 .await
                 .expect("start");
 
@@ -876,7 +891,10 @@ processes:
                 .await
                 .expect("snapshot")
                 .expect("session");
-            if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            if matches!(
+                snap.processes[0].status,
+                ProcessStatus::Ready | ProcessStatus::Running
+            ) {
                 break;
             }
             attempts += 1;
@@ -898,16 +916,14 @@ processes:
         let w2 = window.clone();
         let w3 = window.clone();
 
-        let (r1, r2, r3) = tokio::join!(
-            tokio::spawn(async move { orc1.stop_session(h1, &w1).await }),
-            tokio::spawn(async move { orc2.stop_session(h2, &w2).await }),
-            tokio::spawn(async move { orc3.stop_session(h3, &w3).await }),
-        );
+        let jh1 = tokio::spawn(async move { orc1.stop_session(h1, &w1).await });
+        let jh2 = tokio::spawn(async move { orc2.stop_session(h2, &w2).await });
+        let jh3 = tokio::spawn(async move { orc3.stop_session(h3, &w3).await });
 
         let _ = tokio::time::timeout(Duration::from_secs(20), async {
-            let _ = r1.await;
-            let _ = r2.await;
-            let _ = r3.await;
+            let _ = jh1.await;
+            let _ = jh2.await;
+            let _ = jh3.await;
         })
         .await
         .expect("concurrent stops timed out");
@@ -1077,7 +1093,10 @@ processes:
                 .await
                 .expect("snapshot")
                 .expect("session");
-            if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            if matches!(
+                snap.processes[0].status,
+                ProcessStatus::Ready | ProcessStatus::Running
+            ) {
                 break;
             }
             attempts += 1;
@@ -1133,7 +1152,10 @@ processes:
                 .await
                 .expect("snapshot")
                 .expect("session");
-            if matches!(snap.processes[0].status, ProcessStatus::Ready | ProcessStatus::Running) {
+            if matches!(
+                snap.processes[0].status,
+                ProcessStatus::Ready | ProcessStatus::Running
+            ) {
                 break;
             }
             attempts += 1;
