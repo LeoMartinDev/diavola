@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
   import Icon from "$lib/components/ui/Icon.svelte";
 
   type Props = {
@@ -15,7 +14,6 @@
     caseSensitive: boolean;
     onTogglePause: () => void;
     onClear: () => void;
-    menuActions?: Snippet;
   };
 
   let {
@@ -31,14 +29,14 @@
     caseSensitive = $bindable(),
     onTogglePause,
     onClear,
-    menuActions,
   }: Props = $props();
 
   let searchInput = $state<HTMLInputElement | null>(null);
   let searchFocused = $state(false);
 
-  const showNav = $derived(matchTotal !== null);
-  const navDisabled = $derived(regexError !== null || matchTotal === 0);
+  const navDisabled = $derived(
+    matchTotal === null || regexError !== null || matchTotal === 0,
+  );
 
   export function focusSearch() {
     searchInput?.focus();
@@ -75,7 +73,7 @@
   </div>
 
   <div
-    class="flex shrink-0 items-center gap-0.5 {showNav ? '' : 'invisible pointer-events-none'}"
+    class="flex shrink-0 items-center gap-0.5"
     role="group"
     aria-label="Match navigation"
   >
@@ -98,8 +96,10 @@
         <span class="inline-flex text-danger" title={regexError}>
           <Icon name="error" size="xs" />
         </span>
+      {:else if matchTotal === null || matchTotal === 0}
+        0/0
       {:else}
-        {activeMatchNumber}/{matchTotal ?? 0}
+        {activeMatchNumber}/{matchTotal}
       {/if}
     </span>
     <button
@@ -124,27 +124,27 @@
       type="button"
       tabindex="-1"
       onclick={() => (regex = !regex)}
-      class="grid h-6 min-w-6 px-1 place-items-center rounded-md font-mono text-[11px] transition-colors duration-75 {regex
+      class="grid h-6 w-6 place-items-center rounded-md transition-colors duration-75 {regex
         ? 'bg-accent/15 text-accent'
         : 'text-text-subtle hover:bg-surface-hover hover:text-text'}"
       aria-pressed={regex}
       aria-label="Toggle regex"
       title="Regex"
     >
-      .*
+      <Icon name="asterisk" size="xs" />
     </button>
     <button
       type="button"
       tabindex="-1"
       onclick={() => (caseSensitive = !caseSensitive)}
-      class="grid h-6 min-w-6 px-1 place-items-center rounded-md font-mono text-[11px] transition-colors duration-75 {caseSensitive
+      class="grid h-6 w-6 place-items-center rounded-md transition-colors duration-75 {caseSensitive
         ? 'bg-accent/15 text-accent'
         : 'text-text-subtle hover:bg-surface-hover hover:text-text'}"
       aria-pressed={caseSensitive}
       aria-label="Toggle case sensitive"
       title="Case sensitive"
     >
-      Aa
+      <Icon name="case-sensitive" size="xs" />
     </button>
   </div>
 
@@ -233,9 +233,5 @@
       <span class="text-danger"><Icon name="error" size="xs" /></span>
       <span>{regexError}</span>
     </div>
-  {/if}
-
-  {#if menuActions}
-    {@render menuActions()}
   {/if}
 </div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
   import { MAX_LOG_LINES_PER_PROCESS } from "$lib/stores/runtime.svelte";
   import type { FlatRow } from "$lib/types";
   import { isTypingTarget } from "$lib/utils/dom";
@@ -22,11 +21,9 @@
     truncatedCount: number;
     onClear: () => void;
     onActions?: (actions: { copy: () => void; clear: () => void }) => void;
-    menuActions?: Snippet;
   };
 
-  let { logs, processName, runtimeId = null, truncatedCount, onClear, onActions, menuActions }: Props =
-    $props();
+  let { logs, processName, runtimeId = null, truncatedCount, onClear, onActions }: Props = $props();
 
   const ROW_HEIGHT = 22;
 
@@ -405,7 +402,6 @@
     onNext={nextMatch}
     onTogglePause={togglePaused}
     onClear={clearLogs}
-    {menuActions}
   />
 
   {#if truncatedCount > 0}

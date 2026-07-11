@@ -208,7 +208,6 @@
               truncatedCount={runtimeStore.truncatedLogCountForSelectedProcess()}
               onClear={() => runtimeStore.clearSelectedProcessLogs()}
               onActions={(actions) => (runtimeStore.logActions = actions)}
-              menuActions={projectMenu}
             />
           {:else}
             <div class="grid h-full place-items-center px-6 text-center">

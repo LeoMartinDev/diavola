@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/svelte";
+import { createRawSnippet } from "svelte";
 
 import LogViewer from "./LogViewer.svelte";
 import type { FlatRow } from "$lib/types";
@@ -48,6 +49,18 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 }
 
 describe("LogViewer search", () => {
+  it("does not render menu actions in the log toolbar", () => {
+    const menuActions = createRawSnippet(() => ({
+      render: () => '<button aria-label="Project menu">Menu</button>',
+    }));
+
+    const { queryByRole } = render(LogViewer, {
+      props: makeProps({ menuActions }),
+    });
+
+    expect(queryByRole("button", { name: "Project menu" })).toBeNull();
+  });
+
   it("keeps all rows rendered and highlights matches (no filtering)", async () => {
     const { container } = render(LogViewer, {
       props: makeProps({

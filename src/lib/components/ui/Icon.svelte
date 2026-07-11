@@ -26,7 +26,9 @@
     | "clear"
     | "sun"
     | "moon"
-    | "monitor";
+    | "monitor"
+    | "asterisk"
+    | "case-sensitive";
 </script>
 
 <script lang="ts">
@@ -58,6 +60,8 @@
     Sun,
     Moon,
     Monitor,
+    Asterisk,
+    CaseSensitive,
   } from "@lucide/svelte";
 
   const iconMap: Record<IconName, typeof Play> = {
@@ -88,6 +92,8 @@
     sun: Sun,
     moon: Moon,
     monitor: Monitor,
+    asterisk: Asterisk,
+    "case-sensitive": CaseSensitive,
   };
 
   type Props = {
