@@ -5,6 +5,7 @@
   import { computeVirtualScroll, isAtBottom } from "$lib/utils/virtualScroll";
   import {
     buildMatcher,
+    highlightLine,
     type SearchOptions,
   } from "$lib/utils/searchHighlight";
   import { computeMatchIndices } from "$lib/utils/logSearch";
@@ -451,7 +452,22 @@
                 <span class="mr-1">&#9679;</span>
               {/if}
               {#each parseAnsi(row.text) as ansiSeg}
-                <span style={styleToCss(ansiSeg.style) ?? undefined}>{ansiSeg.text}</span>
+                <span style={styleToCss(ansiSeg.style) ?? undefined}>
+                  {#if matchRowIndices.includes(startIndex + index)}
+                    {#each highlightLine(ansiSeg.text, matcher) as seg}
+                      {#if seg.match}
+                        <mark
+                          class={`text-text rounded-[2px] ${startIndex + index === activeMatchRow && matcherActive ? "bg-warning/60" : "bg-warning/30"}`}
+                          >{seg.text}</mark
+                        >
+                      {:else}
+                        {seg.text}
+                      {/if}
+                    {/each}
+                  {:else}
+                    {ansiSeg.text}
+                  {/if}
+                </span>
               {/each}
             </span>
           </div>
