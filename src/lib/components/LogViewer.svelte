@@ -113,25 +113,18 @@
     goToMatch(activeMatchIndex - 1);
   }
 
-  let searchGeneration = 0;
   const searchScheduler = debounceWithMaxWait(refreshMatches, 80, 250);
 
-  async function refreshMatches() {
+  function refreshMatches() {
     const m = matcher;
     if (m === null || "error" in m) {
       matchRowIndices = [];
       return;
     }
-    const generation = ++searchGeneration;
-    const indices = await computeMatchIndices({
+    const indices = computeMatchIndices({
       logs: visibleLogs,
       matcher: m,
-      query,
-      options: searchOptions,
-      runtimeId: runtimeId ?? null,
-      paused,
     });
-    if (generation !== searchGeneration) return;
     matchRowIndices = indices;
     if (activeMatchIndex > indices.length - 1) {
       activeMatchIndex = Math.max(0, indices.length - 1);
